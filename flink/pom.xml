@@ -13,6 +13,7 @@
         <scala.version>2.12</scala.version>
         <log.version>1.7.32</log.version>
         <lombok.version>1.18.18</lombok.version>
+        <rec.version>1.0-SNAPSHOT</rec.version>
         <flink.scope>provided</flink.scope>
     </properties>
 
@@ -79,6 +80,7 @@
             <scope>${flink.scope}</scope>
         </dependency>
 
+        <!-- connectors -->
         <dependency>
             <groupId>org.apache.bahir</groupId>
             <artifactId>flink-connector-redis_${scala.version}</artifactId>
@@ -95,11 +97,23 @@
             <artifactId>jedis</artifactId>
             <version>4.0.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-connector-hbase-2.2_${scala.version}</artifactId>
+            <version>${flink.version}</version>
+            <scope>${flink.scope}</scope>
+        </dependency>
 
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>${lombok.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.openrec</groupId>
+            <artifactId>rec-proto</artifactId>
+            <version>${rec.version}</version>
         </dependency>
     </dependencies>
 
