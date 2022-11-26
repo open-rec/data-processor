@@ -10,11 +10,15 @@
 
     <properties>
         <flink.version>1.14.0</flink.version>
+        <hadoop.version>2.5.1</hadoop.version>
         <scala.version>2.12</scala.version>
         <log.version>1.7.32</log.version>
         <lombok.version>1.18.18</lombok.version>
         <rec.version>1.0-SNAPSHOT</rec.version>
-        <flink.scope>provided</flink.scope>
+        <!-- debug -->
+        <flink.scope>compile</flink.scope>
+        <!-- deploy -->
+        <!--<flink.scope>provided</flink.scope>-->
     </properties>
 
     <dependencies>
@@ -114,6 +118,11 @@
             <groupId>com.openrec</groupId>
             <artifactId>rec-proto</artifactId>
             <version>${rec.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-common</artifactId>
+            <version>${hadoop.version}</version>
         </dependency>
     </dependencies>
 
