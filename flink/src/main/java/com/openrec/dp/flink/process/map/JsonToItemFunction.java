@@ -10,7 +10,7 @@ public class JsonToItemFunction implements MapFunction<String, Item> {
     @Override
     public Item map(String s) throws Exception {
         Item item = null;
-        if(!StringUtils.isEmpty(s)) {
+        if (!StringUtils.isEmpty(s)) {
             item = JsonUtil.jsonToObj(s, Item.class);
         }
         return item;

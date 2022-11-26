@@ -8,8 +8,8 @@ public class StringToUserFunction implements MapFunction<String, User> {
     @Override
     public User map(String s) throws Exception {
         User user = null;
-        String[] ss=s.split(",");
-        if(ss.length==12) {
+        String[] ss = s.split(",");
+        if (ss.length == 12) {
             user = new User();
             user.setId(ss[0]);
             user.setDeviceId(ss[1]);

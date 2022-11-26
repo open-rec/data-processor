@@ -8,8 +8,8 @@ public class StringToItemFunction implements MapFunction<String, Item> {
     @Override
     public Item map(String s) throws Exception {
         Item item = null;
-        String[] ss=s.split(",");
-        if(ss.length==11) {
+        String[] ss = s.split(",");
+        if (ss.length == 11) {
             item = new Item();
             item.setId(ss[0]);
             item.setTitle(ss[1]);

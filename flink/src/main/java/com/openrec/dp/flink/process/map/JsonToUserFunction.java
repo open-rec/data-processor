@@ -10,7 +10,7 @@ public class JsonToUserFunction implements MapFunction<String, User> {
     @Override
     public User map(String s) throws Exception {
         User user = null;
-        if(!StringUtils.isEmpty(s)) {
+        if (!StringUtils.isEmpty(s)) {
             user = JsonUtil.jsonToObj(s, User.class);
         }
         return user;

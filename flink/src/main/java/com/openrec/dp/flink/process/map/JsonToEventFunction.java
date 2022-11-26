@@ -10,7 +10,7 @@ public class JsonToEventFunction implements MapFunction<String, Event> {
     @Override
     public Event map(String s) throws Exception {
         Event event = null;
-        if(!StringUtils.isEmpty(s)) {
+        if (!StringUtils.isEmpty(s)) {
             event = JsonUtil.jsonToObj(s, Event.class);
         }
         return event;

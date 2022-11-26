@@ -7,6 +7,10 @@ import org.apache.flink.streaming.connectors.redis.common.mapper.RedisMapper;
 
 public class FeatureRedisSink extends RedisSink {
 
+    public FeatureRedisSink(FlinkJedisConfigBase flinkJedisConfigBase) {
+        super(flinkJedisConfigBase, new FeatureRedisMapper());
+    }
+
     static class FeatureRedisMapper implements RedisMapper {
 
         @Override
@@ -23,9 +27,5 @@ public class FeatureRedisSink extends RedisSink {
         public String getValueFromData(Object o) {
             return null;
         }
-    }
-
-    public FeatureRedisSink(FlinkJedisConfigBase flinkJedisConfigBase) {
-        super(flinkJedisConfigBase, new FeatureRedisMapper());
     }
 }

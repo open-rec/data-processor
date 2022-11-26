@@ -8,8 +8,8 @@ public class StringToEventFunction implements MapFunction<String, Event> {
     @Override
     public Event map(String s) throws Exception {
         Event event = null;
-        String[] ss=s.split(",");
-        if(ss.length==10) {
+        String[] ss = s.split(",");
+        if (ss.length == 10) {
             event = new Event();
             event.setUserId(ss[1]);
             event.setItemId(ss[2]);

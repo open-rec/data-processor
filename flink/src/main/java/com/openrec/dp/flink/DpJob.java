@@ -28,7 +28,7 @@ public class DpJob {
         env.setParallelism(Runtime.getRuntime().availableProcessors());
 
         Properties properties = FileUtil.loadProperties(DP_PROPERTIES);
-        if(properties == null) {
+        if (properties == null) {
             log.error("load {} failed, cannot start job", DP_PROPERTIES);
             System.exit(-1);
         }
@@ -42,7 +42,7 @@ public class DpJob {
                 .build();
         DataStream<String> itemStream = env.fromSource(itemSource, WatermarkStrategy.noWatermarks(), "kafka-item");
         itemStream.map(new StringToItemFunction())
-                .addSink(new HBaseSinkFunction<>(null,null,null,0,0,0));
+                .addSink(new HBaseSinkFunction<>(null, null, null, 0, 0, 0));
 //        itemStream.addSink(new NewRedisSink(new FlinkJedisPoolConfig.Builder()
 //                .build()));
 
@@ -55,7 +55,7 @@ public class DpJob {
                 .build();
         DataStream<String> userStream = env.fromSource(userSource, WatermarkStrategy.noWatermarks(), "kafka-user");
         userStream.map(new StringToUserFunction())
-                .addSink(new HBaseSinkFunction<>(null,null,null,0,0,0));
+                .addSink(new HBaseSinkFunction<>(null, null, null, 0, 0, 0));
 
 
         KafkaSource<String> eventSource = KafkaSource.<String>builder()
@@ -68,7 +68,7 @@ public class DpJob {
 
         DataStream<String> eventStream = env.fromSource(eventSource, WatermarkStrategy.noWatermarks(), "kafka-event");
         eventStream.map(new StringToEventFunction())
-                .addSink(new HBaseSinkFunction<>(null,null,null,0,0,0));
+                .addSink(new HBaseSinkFunction<>(null, null, null, 0, 0, 0));
 
         try {
             env.execute();
