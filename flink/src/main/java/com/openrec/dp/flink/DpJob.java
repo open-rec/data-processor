@@ -3,6 +3,7 @@ package com.openrec.dp.flink;
 import com.openrec.dp.flink.process.map.StringToEventFunction;
 import com.openrec.dp.flink.process.map.StringToItemFunction;
 import com.openrec.dp.flink.process.map.StringToUserFunction;
+import com.openrec.dp.flink.util.FileUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -14,18 +15,28 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import java.util.Properties;
+
 @Slf4j
 public class DpJob {
+
+    private static final String DP_PROPERTIES = "dp.properties";
 
     public static void main(String[] args) {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(Runtime.getRuntime().availableProcessors());
 
+        Properties properties = FileUtil.loadProperties(DP_PROPERTIES);
+        if(properties == null) {
+            log.error("load {} failed, cannot start job", DP_PROPERTIES);
+            System.exit(-1);
+        }
+
         KafkaSource<String> itemSource = KafkaSource.<String>builder()
-                .setBootstrapServers("")
-                .setTopics("item")
-                .setGroupId("open-rec")
+                .setBootstrapServers(properties.getProperty("kafka.servers"))
+                .setTopics(properties.getProperty("kafka.item.topic"))
+                .setGroupId(properties.getProperty("kafka.groupId"))
                 .setStartingOffsets(OffsetsInitializer.latest())
                 .setValueOnlyDeserializer(new SimpleStringSchema())
                 .build();
@@ -36,9 +47,9 @@ public class DpJob {
 //                .build()));
 
         KafkaSource<String> userSource = KafkaSource.<String>builder()
-                .setBootstrapServers("")
-                .setTopics("user")
-                .setGroupId("open-rec")
+                .setBootstrapServers(properties.getProperty("kafka.servers"))
+                .setTopics(properties.getProperty("kafka.user.topic"))
+                .setGroupId(properties.getProperty("kafka.groupId"))
                 .setStartingOffsets(OffsetsInitializer.latest())
                 .setValueOnlyDeserializer(new SimpleStringSchema())
                 .build();
@@ -48,9 +59,9 @@ public class DpJob {
 
 
         KafkaSource<String> eventSource = KafkaSource.<String>builder()
-                .setBootstrapServers("")
-                .setTopics("event")
-                .setGroupId("open-rec")
+                .setBootstrapServers(properties.getProperty("kafka.servers"))
+                .setTopics(properties.getProperty("kafka.event.topic"))
+                .setGroupId(properties.getProperty("kafka.groupId"))
                 .setStartingOffsets(OffsetsInitializer.latest())
                 .setValueOnlyDeserializer(new SimpleStringSchema())
                 .build();
