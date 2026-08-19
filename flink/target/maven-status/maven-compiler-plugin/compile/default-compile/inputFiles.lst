@@ -1,0 +1,7 @@
+/home/xsank.mz/openrec/data-processor/flink/src/main/java/com/openrec/dp/flink/util/FileUtil.java
+/home/xsank.mz/openrec/data-processor/flink/src/main/java/com/openrec/dp/flink/process/EventToFeatureUpdates.java
+/home/xsank.mz/openrec/data-processor/flink/src/main/java/com/openrec/dp/flink/DpJob.java
+/home/xsank.mz/openrec/data-processor/flink/src/main/java/com/openrec/dp/flink/sink/SnapshotRedisSink.java
+/home/xsank.mz/openrec/data-processor/flink/src/main/java/com/openrec/dp/flink/process/EventFeatureProcessFunction.java
+/home/xsank.mz/openrec/data-processor/flink/src/main/java/com/openrec/dp/flink/sink/RawRedisSink.java
+/home/xsank.mz/openrec/data-processor/flink/src/main/java/com/openrec/dp/flink/util/JsonUtil.java

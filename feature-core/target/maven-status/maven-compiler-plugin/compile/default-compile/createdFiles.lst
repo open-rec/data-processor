@@ -1,0 +1,5 @@
+com/openrec/dp/feature/EventFeatureAccumulator.class
+com/openrec/dp/feature/FeatureUpdates.class
+com/openrec/dp/feature/FeatureJson.class
+com/openrec/dp/feature/FeatureSnapshot.class
+com/openrec/dp/feature/FeatureUpdate.class

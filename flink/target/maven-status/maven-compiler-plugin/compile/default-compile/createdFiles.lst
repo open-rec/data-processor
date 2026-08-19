@@ -1,0 +1,7 @@
+com/openrec/dp/flink/DpJob.class
+com/openrec/dp/flink/sink/RawRedisSink.class
+com/openrec/dp/flink/util/FileUtil.class
+com/openrec/dp/flink/sink/SnapshotRedisSink.class
+com/openrec/dp/flink/process/EventFeatureProcessFunction.class
+com/openrec/dp/flink/process/EventToFeatureUpdates.class
+com/openrec/dp/flink/util/JsonUtil.class
