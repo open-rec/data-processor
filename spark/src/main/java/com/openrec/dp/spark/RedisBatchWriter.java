@@ -5,8 +5,12 @@ import java.util.Properties;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.streaming.StreamingQuery;
+import org.apache.spark.sql.types.DataTypes;
+import static org.apache.spark.sql.functions.col;
+import static org.apache.spark.sql.functions.udf;
 
 import com.openrec.dp.feature.FeatureJson;
+import com.openrec.dp.feature.EntityPartitions;
 import com.openrec.dp.feature.FeatureSnapshot;
 import com.openrec.proto.model.Event;
 import com.openrec.proto.model.Item;
@@ -28,7 +32,12 @@ final class RedisBatchWriter {
         String prefix = p.getProperty("hbase.table.prefix", "openrec_");
         long newMaxItems = Long.parseLong(p.getProperty("redis.new.max-items", "10000"));
         return input.writeStream().option("checkpointLocation", checkpoint).foreachBatch((batch, id) -> {
-            if (hiveEnabled) { batch.select("json").write().mode("append").text(output); }
+            if (hiveEnabled) {
+                batch.select(col("json"), udf((String json) -> EntityPartitions.bucket(type, json),
+                    DataTypes.StringType).apply(col("json")).alias("bucket"))
+                    .withColumn("dt", org.apache.spark.sql.functions.regexp_replace(col("bucket"), "^dt=", ""))
+                    .drop("bucket").write().mode("append").partitionBy("dt").text(output);
+            }
             batch.foreachPartition(rows -> {
                 try (JedisPooled jedis = new JedisPooled(host, port);
                      HBaseEntityWriter hbase = hbaseEnabled

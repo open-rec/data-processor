@@ -22,6 +22,7 @@ import com.openrec.dp.flink.process.EventFeatureProcessFunction;
 import com.openrec.dp.flink.process.EventToFeatureUpdates;
 import com.openrec.dp.flink.sink.RawRedisSink;
 import com.openrec.dp.flink.sink.HBaseEntitySink;
+import com.openrec.dp.flink.sink.EntityDateBucketAssigner;
 import com.openrec.dp.flink.sink.SnapshotRedisSink;
 import com.openrec.dp.flink.util.FileUtil;
 
@@ -73,12 +74,18 @@ public class DpJob {
             stream.addSink(new HBaseEntitySink(type, p)).name(type + "-entity-hbase");
         }
         if (Boolean.parseBoolean(p.getProperty("hive.enabled", "true"))) {
-            stream.sinkTo(fileSink(p, "hive/" + type));
+            stream.sinkTo(entityFileSink(p, type));
         }
     }
 
     private static FileSink<String> fileSink(Properties p, String path) {
         return FileSink.forRowFormat(new Path(p.getProperty("hdfs.output") + "/" + path),
             new SimpleStringEncoder<String>("UTF-8")).build();
+    }
+
+    private static FileSink<String> entityFileSink(Properties p, String type) {
+        return FileSink.forRowFormat(new Path(p.getProperty("hdfs.output") + "/hive/" + type),
+            new SimpleStringEncoder<String>("UTF-8"))
+            .withBucketAssigner(new EntityDateBucketAssigner(type)).build();
     }
 }

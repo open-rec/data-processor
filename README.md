@@ -16,7 +16,11 @@ Each event updates both its user and item snapshot. Redis keys are `feature:user
 
 Both jobs preserve the Kafka JSON byte-for-byte in HBase tables `openrec_user`, `openrec_item`, and `openrec_event`, under column `entity:json`. User and item ids are row keys; events use `traceId`, falling back to `time#userId#itemId#scene#type`. Tables are created idempotently when a task starts.
 
-The same payloads are appended under `hdfs://namenode:8020/openrec/hive/{user,item,event}`. Install the external Hive tables once after the cluster starts:
+The same payloads are appended under
+`hdfs://namenode:8020/openrec/hive/{user,item,event}/dt=YYYY-MM-DD`. The UTC partition date comes
+from event `time`, item `modifyTime`/`pubTime`, or user `loginTime`/`registerTime`; malformed or
+missing timestamps fall back to the processing date. Install the partitioned external Hive tables
+once after the cluster starts:
 
 ```bash
 docker exec -i hiveserver2 /opt/hive/bin/beeline \
@@ -25,6 +29,10 @@ docker exec -i hiveserver2 /opt/hive/bin/beeline \
 ```
 
 If the source tree is not mounted at `/opt/workspace`, copy the SQL file into the container first. Offline embedding, i2i, and hot training jobs should read `openrec.user_entity`, `openrec.item_entity`, and `openrec.event_entity`, parse the JSON fields they require, and publish serving outputs to Redis/Elasticsearch. Feature snapshots remain under `/openrec/features`. Checkpoints are stored separately; never use checkpoint files as training input.
+
+The DDL changed from an unpartitioned table to `PARTITIONED BY (dt STRING)`. Drop and recreate an
+older development table before deploying this version (external data is not deleted). Scheduled
+algorithm jobs register only their requested day with `ALTER TABLE ADD IF NOT EXISTS PARTITION`.
 
 Kafka payloads currently contain records rather than command envelopes. Consequently, the processors support inserts/upserts; delete semantics require rec-server to publish `PushCmd` in a future schema version.
 
