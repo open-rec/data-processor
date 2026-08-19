@@ -21,6 +21,7 @@ import com.openrec.dp.feature.FeatureUpdate;
 import com.openrec.dp.flink.process.EventFeatureProcessFunction;
 import com.openrec.dp.flink.process.EventToFeatureUpdates;
 import com.openrec.dp.flink.sink.RawRedisSink;
+import com.openrec.dp.flink.sink.HBaseEntitySink;
 import com.openrec.dp.flink.sink.SnapshotRedisSink;
 import com.openrec.dp.flink.util.FileUtil;
 
@@ -68,7 +69,12 @@ public class DpJob {
 
     private static void persistRaw(DataStream<String> stream, String type, Properties p) {
         stream.addSink(new RawRedisSink(type, p)).name(type + "-serving-redis");
-        stream.sinkTo(fileSink(p, "raw/" + type));
+        if (Boolean.parseBoolean(p.getProperty("hbase.enabled", "true"))) {
+            stream.addSink(new HBaseEntitySink(type, p)).name(type + "-entity-hbase");
+        }
+        if (Boolean.parseBoolean(p.getProperty("hive.enabled", "true"))) {
+            stream.sinkTo(fileSink(p, "hive/" + type));
+        }
     }
 
     private static FileSink<String> fileSink(Properties p, String path) {

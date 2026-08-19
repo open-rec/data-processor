@@ -17,10 +17,12 @@ public class RawRedisSink extends RichSinkFunction<String> {
     private final String type;
     private final String host;
     private final int port;
+    private final long newMaxItems;
     private transient JedisPooled jedis;
     public RawRedisSink(String type, Properties p) {
         this.type = type; host = p.getProperty("redis.host");
         port = Integer.parseInt(p.getProperty("redis.port"));
+        newMaxItems = Long.parseLong(p.getProperty("redis.new.max-items", "10000"));
     }
     @Override public void open(Configuration parameters) { jedis = new JedisPooled(host, port); }
     @Override public void invoke(String json, Context context) {
@@ -31,7 +33,11 @@ public class RawRedisSink extends RichSinkFunction<String> {
             Item item = FeatureJson.fromJson(json, Item.class);
             if (item != null && item.getId() != null) {
                 jedis.set("item:{" + item.getId() + "}", json);
-                if (item.getScene() != null) { jedis.zadd("new:{" + item.getScene() + "}", parse(item.getPubTime()), item.getId()); }
+                if (item.getScene() != null && !item.getScene().trim().isEmpty()) {
+                    String key = "new:{" + item.getScene() + "}";
+                    jedis.zadd(key, parse(item.getPubTime()), item.getId());
+                    if (newMaxItems > 0) { jedis.zremrangeByRank(key, 0, -newMaxItems - 1); }
+                }
             }
         } else {
             Event event = FeatureJson.fromJson(json, Event.class);

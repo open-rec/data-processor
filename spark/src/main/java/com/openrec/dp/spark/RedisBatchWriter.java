@@ -18,14 +18,26 @@ final class RedisBatchWriter {
     private RedisBatchWriter() {}
 
     static StreamingQuery persistRaw(Dataset<Row> input, String type, Properties p) throws Exception {
-        String output = p.getProperty("hdfs.output") + "/raw/" + type;
+        String output = p.getProperty("hdfs.output") + "/hive/" + type;
         String checkpoint = p.getProperty("checkpoint.path") + "/raw-" + type;
         String host = p.getProperty("redis.host"); int port = Integer.parseInt(p.getProperty("redis.port"));
+        boolean hbaseEnabled = Boolean.parseBoolean(p.getProperty("hbase.enabled", "true"));
+        boolean hiveEnabled = Boolean.parseBoolean(p.getProperty("hive.enabled", "true"));
+        String quorum = p.getProperty("hbase.zookeeper.quorum", "zookeeper-1,zookeeper-2,zookeeper-3");
+        String znode = p.getProperty("hbase.zookeeper.znode.parent", "/hbase");
+        String prefix = p.getProperty("hbase.table.prefix", "openrec_");
+        long newMaxItems = Long.parseLong(p.getProperty("redis.new.max-items", "10000"));
         return input.writeStream().option("checkpointLocation", checkpoint).foreachBatch((batch, id) -> {
-            batch.select("json").write().mode("append").text(output);
+            if (hiveEnabled) { batch.select("json").write().mode("append").text(output); }
             batch.foreachPartition(rows -> {
-                try (JedisPooled jedis = new JedisPooled(host, port)) {
-                    while (rows.hasNext()) { writeRaw(jedis, type, rows.next().getString(0)); }
+                try (JedisPooled jedis = new JedisPooled(host, port);
+                     HBaseEntityWriter hbase = hbaseEnabled
+                         ? new HBaseEntityWriter(type, quorum, znode, prefix) : null) {
+                    while (rows.hasNext()) {
+                        String json = rows.next().getString(0);
+                        writeRaw(jedis, type, json, newMaxItems);
+                        if (hbase != null) { hbase.write(type, json); }
+                    }
                 }
             });
         }).start();
@@ -49,7 +61,7 @@ final class RedisBatchWriter {
             }).start();
     }
 
-    private static void writeRaw(JedisPooled jedis, String type, String json) {
+    private static void writeRaw(JedisPooled jedis, String type, String json, long newMaxItems) {
         if ("user".equals(type)) {
             User user = FeatureJson.fromJson(json, User.class);
             if (user != null && user.getId() != null) { jedis.set("user:{" + user.getId() + "}", json); }
@@ -57,7 +69,11 @@ final class RedisBatchWriter {
             Item item = FeatureJson.fromJson(json, Item.class);
             if (item != null && item.getId() != null) {
                 jedis.set("item:{" + item.getId() + "}", json);
-                jedis.zadd("new:{" + item.getScene() + "}", number(item.getPubTime()), item.getId());
+                if (item.getScene() != null && !item.getScene().trim().isEmpty()) {
+                    String key = "new:{" + item.getScene() + "}";
+                    jedis.zadd(key, number(item.getPubTime()), item.getId());
+                    if (newMaxItems > 0) { jedis.zremrangeByRank(key, 0, -newMaxItems - 1); }
+                }
             }
         } else {
             Event event = FeatureJson.fromJson(json, Event.class);

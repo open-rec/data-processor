@@ -1,6 +1,6 @@
 # Real-time Feature Processor
 
-`data-processor` provides equivalent Flink and Spark Structured Streaming jobs. Both consume the `user`, `item`, and `event` Kafka topics, update Redis serving data, and append immutable JSON records to HDFS for offline training.
+`data-processor` provides equivalent Flink and Spark Structured Streaming jobs. Both consume the `user`, `item`, and `event` Kafka topics, update Redis serving data, persist the original entities in HBase, and append immutable JSON records to Hive-backed HDFS locations for offline training.
 
 ## Feature Contract
 
@@ -10,11 +10,21 @@ Feature formulas live in `feature-core`; Flink and Spark only supply engine-spec
 - time: first/last event, recency, and 1/7/30-day counts;
 - actions: click, expose, buy, collect and stay counts, plus click rate.
 
-Each event updates both its user and item snapshot. Redis keys are `feature:user:{id}` and `feature:item:{id}`. Raw serving keys remain compatible with rec-server (`user:{id}`, `item:{id}`, `event:{userId}:scene:type`, and `new:{scene}`).
+Each event updates both its user and item snapshot. Redis keys are `feature:user:{id}` and `feature:item:{id}`. Raw serving keys remain compatible with rec-server (`user:{id}`, `item:{id}`, `event:{userId}:scene:type`, and `new:{scene}`). `new:{scene}` is a sorted set scored by `pubTime`; `redis.new.max-items` bounds every scene so the realtime projection cannot grow without limit.
 
 ## Durable Training Data
 
-Both jobs append raw Kafka payloads under `hdfs://namenode:8020/openrec/raw/{user,item,event}` and feature snapshots under `/openrec/features`. Offline training should read raw user/item dimensions and join the latest snapshot per `(entityType, entityId)` using `asOfTime`. Checkpoints are stored separately; never use checkpoint files as training input.
+Both jobs preserve the Kafka JSON byte-for-byte in HBase tables `openrec_user`, `openrec_item`, and `openrec_event`, under column `entity:json`. User and item ids are row keys; events use `traceId`, falling back to `time#userId#itemId#scene#type`. Tables are created idempotently when a task starts.
+
+The same payloads are appended under `hdfs://namenode:8020/openrec/hive/{user,item,event}`. Install the external Hive tables once after the cluster starts:
+
+```bash
+docker exec -i hiveserver2 /opt/hive/bin/beeline \
+  -u jdbc:hive2://hiveserver2:10000 -n hive \
+  -f /opt/workspace/data-processor/sql/openrec_entities.sql
+```
+
+If the source tree is not mounted at `/opt/workspace`, copy the SQL file into the container first. Offline embedding, i2i, and hot training jobs should read `openrec.user_entity`, `openrec.item_entity`, and `openrec.event_entity`, parse the JSON fields they require, and publish serving outputs to Redis/Elasticsearch. Feature snapshots remain under `/openrec/features`. Checkpoints are stored separately; never use checkpoint files as training input.
 
 Kafka payloads currently contain records rather than command envelopes. Consequently, the processors support inserts/upserts; delete semantics require rec-server to publish `PushCmd` in a future schema version.
 
@@ -39,7 +49,7 @@ spark-submit --class com.openrec.dp.spark.SparkFeatureJob \
   --master spark://spark-master:7077 spark/target/rec-spark-1.0-SNAPSHOT.jar
 ```
 
-Configure Kafka, Redis, HDFS, checkpoint paths, parallelism, and event lateness in each module's `src/main/resources/dp.properties`. Use distinct checkpoint directories when comparing engines. Running both against the same topics is suitable for parity testing but duplicates persisted output.
+Configure Kafka, Redis, HBase, Hive/HDFS, checkpoint paths, parallelism, and event lateness in each module's `src/main/resources/dp.properties`. Set `hbase.enabled=false` or `hive.enabled=false` only when intentionally running without that cluster component. Use distinct Kafka consumer groups and checkpoint directories when comparing engines. Running both against the same topics duplicates persisted entities, although stable HBase row keys make user/item updates idempotent.
 
 ## Testing
 
