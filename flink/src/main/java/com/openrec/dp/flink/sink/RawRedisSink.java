@@ -6,6 +6,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 
 import com.openrec.dp.feature.FeatureJson;
+import com.openrec.dp.feature.DislikeRules;
 import com.openrec.dp.feature.EntityMessage;
 import com.openrec.proto.model.Event;
 import com.openrec.proto.model.Item;
@@ -58,8 +59,14 @@ public class RawRedisSink extends RichSinkFunction<String> {
         } else {
             Event event = FeatureJson.fromJson(json, Event.class);
             if (event != null && event.getUserId() != null && event.getItemId() != null) {
-                jedis.zadd("event:{" + event.getUserId() + "}:" + event.getScene() + ":" + event.getType(),
-                    parse(event.getTime()), event.getItemId());
+                String key = "event:{" + event.getUserId() + "}:" + event.getScene() + ":" + event.getType();
+                if ("dislike".equalsIgnoreCase(event.getType())) {
+                    for (String rule : DislikeRules.parse(event.getValue())) {
+                        jedis.zadd(key, parse(event.getTime()), rule);
+                    }
+                } else {
+                    jedis.zadd(key, parse(event.getTime()), event.getItemId());
+                }
             }
         }
     }

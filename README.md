@@ -10,7 +10,7 @@ Feature formulas live in `feature-core`; Flink and Spark only supply engine-spec
 - time: first/last event, recency, and 1/7/30-day counts;
 - actions: click, expose, buy, collect and stay counts, plus click rate.
 
-Each event updates both its user and item snapshot. Redis keys are `feature:user:{id}` and `feature:item:{id}`. Raw serving keys remain compatible with rec-server (`user:{id}`, `item:{id}`, `event:{userId}:scene:type`, and `new:{scene}`). `new:{scene}` is a sorted set scored by `pubTime`; `redis.new.max-items` bounds every scene so the realtime projection cannot grow without limit.
+Each event updates both its user and item snapshot. Redis keys are `feature:user:{id}` and `feature:item:{id}`. Raw serving keys remain compatible with rec-server (`user:{id}`, `item:{id}`, `event:{userId}:scene:type`, and `new:{scene}`). A structured `dislike` value is expanded into `id:`, `category:`, and one or more `tag:` members so BlackNode can apply it online; other event members remain item IDs. `new:{scene}` is a sorted set scored by `pubTime`; `redis.new.max-items` bounds every scene so the realtime projection cannot grow without limit.
 
 ## Durable Training Data
 

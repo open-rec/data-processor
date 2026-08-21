@@ -10,6 +10,7 @@ import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.udf;
 
 import com.openrec.dp.feature.FeatureJson;
+import com.openrec.dp.feature.DislikeRules;
 import com.openrec.dp.feature.EntityPartitions;
 import com.openrec.dp.feature.EntityMessage;
 import com.openrec.dp.feature.FeatureSnapshot;
@@ -103,8 +104,14 @@ final class RedisBatchWriter {
         } else {
             Event event = FeatureJson.fromJson(json, Event.class);
             if (event != null && event.getUserId() != null && event.getItemId() != null) {
-                jedis.zadd("event:{" + event.getUserId() + "}:" + event.getScene() + ":" + event.getType(),
-                    number(event.getTime()), event.getItemId());
+                String key = "event:{" + event.getUserId() + "}:" + event.getScene() + ":" + event.getType();
+                if ("dislike".equalsIgnoreCase(event.getType())) {
+                    for (String rule : DislikeRules.parse(event.getValue())) {
+                        jedis.zadd(key, number(event.getTime()), rule);
+                    }
+                } else {
+                    jedis.zadd(key, number(event.getTime()), event.getItemId());
+                }
             }
         }
     }
