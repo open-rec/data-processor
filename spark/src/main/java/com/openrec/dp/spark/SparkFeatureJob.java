@@ -20,6 +20,7 @@ import org.apache.spark.sql.streaming.OutputMode;
 import org.apache.spark.sql.streaming.StreamingQuery;
 
 import com.openrec.dp.feature.EventFeatureAccumulator;
+import com.openrec.dp.feature.EntityMessage;
 import com.openrec.dp.feature.FeatureJson;
 import com.openrec.dp.feature.FeatureSnapshot;
 import com.openrec.dp.feature.FeatureUpdate;
@@ -41,7 +42,9 @@ public class SparkFeatureJob {
         queries.add(RedisBatchWriter.persistRaw(events, "event", p));
 
         Dataset<FeatureUpdate> updates = events.flatMap((FlatMapFunction<Row, FeatureUpdate>) row -> {
-            Event event = FeatureJson.fromJson(row.getString(0), Event.class);
+            EntityMessage message = EntityMessage.parse("event", row.getString(0));
+            Event event = message == null ? null
+                : FeatureJson.fromJson(message.getDataJson(), Event.class);
             return event == null ? java.util.Collections.emptyIterator()
                 : FeatureUpdates.fromEvent(event).iterator();
         }, Encoders.kryo(FeatureUpdate.class));

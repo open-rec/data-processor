@@ -20,4 +20,12 @@ public class EntityRecordTest {
         assertNull(EntityRecord.fromJson("event", "{\"userId\":\"u1\"}"));
         assertNull(EntityRecord.fromJson("unknown", "{}"));
     }
+
+    @Test public void parsesVersionedDeleteEnvelope() {
+        String value = "{\"schemaVersion\":1,\"entityType\":\"item\","
+            + "\"operation\":\"DELETE\",\"occurredAt\":1700000000000,\"data\":{\"id\":\"i1\"}}";
+        EntityMessage message = EntityMessage.parse("item", value);
+        assertEquals(true, message.isDelete());
+        assertEquals("i1", EntityRecord.fromJson("item", value).getRowKey());
+    }
 }

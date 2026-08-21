@@ -18,6 +18,12 @@ public final class EntityPartitions {
     }
 
     static String bucket(String type, String json, long fallbackMillis) {
+        EntityMessage message = EntityMessage.parse(type, json);
+        if (message == null) { return "dt=" + DAY.format(Instant.ofEpochMilli(fallbackMillis)); }
+        json = message.getDataJson();
+        if (message.isDelete() && message.getOccurredAt() > 0) {
+            fallbackMillis = message.getOccurredAt();
+        }
         String timestamp = null;
         if ("event".equals(type)) {
             Event value = FeatureJson.fromJson(json, Event.class);

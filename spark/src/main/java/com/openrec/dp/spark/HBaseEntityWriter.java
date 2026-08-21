@@ -10,10 +10,12 @@ import org.apache.hadoop.hbase.client.ColumnFamilyDescriptorBuilder;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.client.TableDescriptorBuilder;
 
 import com.openrec.dp.feature.EntityRecord;
+import com.openrec.dp.feature.EntityMessage;
 
 final class HBaseEntityWriter implements Closeable {
     private static final byte[] FAMILY = "entity".getBytes(StandardCharsets.UTF_8);
@@ -41,6 +43,11 @@ final class HBaseEntityWriter implements Closeable {
     void write(String type, String json) throws Exception {
         EntityRecord record = EntityRecord.fromJson(type, json);
         if (record == null) { return; }
+        EntityMessage message = EntityMessage.parse(type, json);
+        if (message != null && message.isDelete()) {
+            table.delete(new Delete(record.getRowKey().getBytes(StandardCharsets.UTF_8)));
+            return;
+        }
         Put put = new Put(record.getRowKey().getBytes(StandardCharsets.UTF_8));
         put.addColumn(FAMILY, JSON, record.getJson().getBytes(StandardCharsets.UTF_8));
         table.put(put);

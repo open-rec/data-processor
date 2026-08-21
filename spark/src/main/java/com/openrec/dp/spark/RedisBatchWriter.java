@@ -11,6 +11,7 @@ import static org.apache.spark.sql.functions.udf;
 
 import com.openrec.dp.feature.FeatureJson;
 import com.openrec.dp.feature.EntityPartitions;
+import com.openrec.dp.feature.EntityMessage;
 import com.openrec.dp.feature.FeatureSnapshot;
 import com.openrec.proto.model.Event;
 import com.openrec.proto.model.Item;
@@ -71,12 +72,27 @@ final class RedisBatchWriter {
     }
 
     private static void writeRaw(JedisPooled jedis, String type, String json, long newMaxItems) {
+        EntityMessage message = EntityMessage.parse(type, json);
+        if (message == null) { return; }
+        json = message.getDataJson();
         if ("user".equals(type)) {
             User user = FeatureJson.fromJson(json, User.class);
-            if (user != null && user.getId() != null) { jedis.set("user:{" + user.getId() + "}", json); }
+            if (user != null && user.getId() != null) {
+                if (message.isDelete()) { jedis.del("user:{" + user.getId() + "}"); }
+                else { jedis.set("user:{" + user.getId() + "}", json); }
+            }
         } else if ("item".equals(type)) {
             Item item = FeatureJson.fromJson(json, Item.class);
             if (item != null && item.getId() != null) {
+                if (message.isDelete()) {
+                    String existing = jedis.get("item:{" + item.getId() + "}");
+                    Item old = FeatureJson.fromJson(existing, Item.class);
+                    String scene = item.getScene() != null ? item.getScene()
+                        : old == null ? null : old.getScene();
+                    jedis.del("item:{" + item.getId() + "}");
+                    if (scene != null) { jedis.zrem("new:{" + scene + "}", item.getId()); }
+                    return;
+                }
                 jedis.set("item:{" + item.getId() + "}", json);
                 if (item.getScene() != null && !item.getScene().trim().isEmpty()) {
                     String key = "new:{" + item.getScene() + "}";

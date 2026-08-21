@@ -24,6 +24,9 @@ public class EntityRecord implements Serializable {
 
     public static EntityRecord fromJson(String type, String json) {
         if (blank(type) || blank(json)) { return null; }
+        EntityMessage message = EntityMessage.parse(type, json);
+        if (message == null) { return null; }
+        json = message.getDataJson();
         if ("user".equals(type)) {
             User user = FeatureJson.fromJson(json, User.class);
             return user == null || blank(user.getId()) ? null : new EntityRecord(type, user.getId(), json);

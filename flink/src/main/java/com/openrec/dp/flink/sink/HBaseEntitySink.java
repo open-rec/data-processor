@@ -11,11 +11,13 @@ import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.client.TableDescriptorBuilder;
 import org.apache.hadoop.hbase.client.ColumnFamilyDescriptorBuilder;
 
 import com.openrec.dp.feature.EntityRecord;
+import com.openrec.dp.feature.EntityMessage;
 
 /** Persists the unmodified Kafka JSON as an HBase entity value. */
 public class HBaseEntitySink extends RichSinkFunction<String> {
@@ -55,6 +57,11 @@ public class HBaseEntitySink extends RichSinkFunction<String> {
     @Override public void invoke(String json, Context context) throws Exception {
         EntityRecord record = EntityRecord.fromJson(type, json);
         if (record == null) { return; }
+        EntityMessage message = EntityMessage.parse(type, json);
+        if (message != null && message.isDelete()) {
+            table.delete(new Delete(record.getRowKey().getBytes(StandardCharsets.UTF_8)));
+            return;
+        }
         Put put = new Put(record.getRowKey().getBytes(StandardCharsets.UTF_8));
         put.addColumn(FAMILY, JSON, record.getJson().getBytes(StandardCharsets.UTF_8));
         table.put(put);
