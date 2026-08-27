@@ -17,12 +17,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v7
+      - name: Check out data processor
+        uses: actions/checkout@v7
+        with:
+          path: data-processor
+      - name: Check out protocol source
+        uses: actions/checkout@v7
+        with:
+          repository: open-rec/rec-server
+          path: rec-server
       - name: Set up Java 8
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '8'
           cache: maven
+      - name: Install protocol artifact
+        working-directory: rec-server
+        run: mvn --batch-mode --no-transfer-progress -pl proto -am install -DskipTests
       - name: Run tests
+        working-directory: data-processor
         run: mvn --batch-mode --no-transfer-progress clean test
