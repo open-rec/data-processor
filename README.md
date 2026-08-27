@@ -1,5 +1,10 @@
 # Real-time Feature Processor
 
+[![CI](https://github.com/open-rec/data-processor/actions/workflows/ci.yml/badge.svg)](https://github.com/open-rec/data-processor/actions/workflows/ci.yml)
+![Java](https://img.shields.io/badge/Java-8-ED8B00?logo=openjdk&logoColor=white)
+![Flink](https://img.shields.io/badge/Flink-1.14.6-E6526F?logo=apacheflink&logoColor=white)
+![Spark](https://img.shields.io/badge/Spark-3.5.3-E25A1C?logo=apachespark&logoColor=white)
+
 `data-processor` provides equivalent Flink and Spark Structured Streaming jobs. Both consume the `user`, `item`, and `event` Kafka topics, update Redis serving data, persist the original entities in HBase, and append immutable JSON records to Hive-backed HDFS locations for offline training.
 
 ## Feature Contract
