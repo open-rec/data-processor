@@ -1,4 +1,4 @@
-# Real-time Feature Processor
+# OpenRec Real-Time Data Processor
 
 [![CI](https://github.com/open-rec/data-processor/actions/workflows/ci.yml/badge.svg)](https://github.com/open-rec/data-processor/actions/workflows/ci.yml)
 ![Java](https://img.shields.io/badge/Java-8-ED8B00?logo=openjdk&logoColor=white)
@@ -39,7 +39,14 @@ The DDL changed from an unpartitioned table to `PARTITIONED BY (dt STRING)`. Dro
 older development table before deploying this version (external data is not deleted). Scheduled
 algorithm jobs register only their requested day with `ALTER TABLE ADD IF NOT EXISTS PARTITION`.
 
-Kafka payloads currently contain records rather than command envelopes. Consequently, the processors support inserts/upserts; delete semantics require rec-server to publish `PushCmd` in a future schema version.
+Kafka messages use the version 1 mutation envelope published by `rec-server`: entity type,
+`INSERT`/`UPDATE`/`DELETE` operation, event time, and the entity payload. Both processors also accept
+legacy bare-entity JSON as `INSERT` during the compatibility window. `INSERT` and `UPDATE` are
+upserts. User and item deletes remove Redis serving state and append tombstones to historical
+storage so cumulative offline readers do not resurrect deleted entities. Event deletion is not
+currently accepted by `rec-server`; event history remains append-only. See
+[`rec-proto`](https://github.com/open-rec/rec-server/tree/master/proto) for the shared mutation
+contract.
 
 ## Build and Run
 
@@ -64,6 +71,29 @@ spark-submit --class com.openrec.dp.spark.SparkFeatureJob \
 
 Configure Kafka, Redis, HBase, Hive/HDFS, checkpoint paths, parallelism, and event lateness in each module's `src/main/resources/dp.properties`. Set `hbase.enabled=false` or `hive.enabled=false` only when intentionally running without that cluster component. Use distinct Kafka consumer groups and checkpoint directories when comparing engines. Running both against the same topics duplicates persisted entities, although stable HBase row keys make user/item updates idempotent.
 
+## Delivery and compatibility
+
+The two engines implement the same projection contract but are alternative deployments, not an
+active/active pair. Their default consumer groups are distinct, so starting both processes every
+message twice. Redis user/item writes and HBase user/item row keys are idempotent; event history and
+Hive/HDFS output are append-oriented and can contain duplicates after retries or dual-engine runs.
+Offline readers must collapse mutations by entity id and event time and apply the latest DELETE
+tombstone.
+
+Flink checkpoints every 60 seconds and allows 30 seconds of event-time disorder by default. Spark
+uses the HDFS checkpoint path configured in `dp.properties`. Preserve or deliberately migrate these
+locations during an engine upgrade; checkpoint files are recovery state, not training input.
+
+This repository currently builds Java 8 bytecode against Flink 1.14.6, Spark 3.5.3/Scala 2.12,
+HBase 2.5.10, and the Kafka endpoints supplied by `bigdata-platform`. Compile-time success on a newer
+JDK does not establish cluster-runtime compatibility; upgrade the corresponding platform image and
+run the cluster deletion, persistence, and recall acceptance flows together.
+
 ## Testing
 
 `feature-core` unit tests validate user/item aggregation, rolling windows, action counts, and click-rate semantics. When changing a feature in `rec-algorithm`, update the shared contract and its tests in the same change so online and offline definitions stay aligned.
+
+`mvn clean test` is the local unit boundary. Redis, Kafka, HBase, Hive, checkpoint recovery, and
+DELETE tombstones are verified by the distribution-level cluster acceptance flow in
+[`example`](https://github.com/open-rec/example); do not treat one engine's unit suite as complete
+contract validation.
