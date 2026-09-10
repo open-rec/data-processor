@@ -10,6 +10,7 @@ public class FeatureUpdate implements Serializable {
     private String eventType;
     private double value;
     private long eventTime;
+    private String eventIdentity;
 
     public String key() { return entityType + ":" + entityId; }
     public String getEntityType() { return entityType; }
@@ -26,4 +27,6 @@ public class FeatureUpdate implements Serializable {
     public void setValue(double value) { this.value = value; }
     public long getEventTime() { return eventTime; }
     public void setEventTime(long value) { this.eventTime = value; }
+    public String getEventIdentity() { return eventIdentity; }
+    public void setEventIdentity(String value) { this.eventIdentity = value; }
 }

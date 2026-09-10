@@ -6,10 +6,15 @@ import static org.junit.Assert.assertNull;
 import java.util.List;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
+import java.io.InputStreamReader;
 
 import org.junit.Test;
 
 import com.openrec.proto.model.Event;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 public class EventFeatureAccumulatorTest {
     @Test
@@ -28,6 +33,8 @@ public class EventFeatureAccumulatorTest {
         assertEquals(2d, snapshot.getFeatures().get("event_unique_scene_count"), 0d);
         assertEquals(2d, snapshot.getFeatures().get("event_unique_item_count"), 0d);
         assertEquals(0.5d, snapshot.getFeatures().get("event_click_rate"), 0d);
+        assertEquals(FeatureCatalogContract.get().getVersion(), snapshot.getCatalogVersion());
+        assertEquals(FeatureCatalogContract.get().getSha256(), snapshot.getCatalogSha256());
         assertEquals(new LinkedHashSet<>(Arrays.asList(
             "event_count", "event_value_sum", "event_value_mean", "event_active_days",
             "event_unique_scene_count", "event_unique_item_count", "event_first_time",
@@ -45,6 +52,47 @@ public class EventFeatureAccumulatorTest {
     public void rejectsMalformedAndIncompleteEvents() {
         assertNull(FeatureJson.fromJson("{bad-json", Event.class));
         assertEquals(0, FeatureUpdates.fromEvent(new Event()).size());
+        Event invalidTime = event("u", "i", "s", "click", "1", "bad");
+        assertEquals(0, FeatureUpdates.fromEvent(invalidTime).size());
+    }
+
+    @Test
+    public void deduplicatesTraceAndIgnoresEmptyScene() {
+        Event event = event("u", "i", " ", "click", "2", "100");
+        event.setTraceId("same");
+        FeatureUpdate update = FeatureUpdates.fromEvent(event).get(0);
+        EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
+        accumulator.add(update);
+        FeatureSnapshot result = accumulator.add(update);
+        assertEquals(1d, result.getFeatures().get("event_count"), 0d);
+        assertEquals(0d, result.getFeatures().get("event_unique_scene_count"), 0d);
+    }
+
+    @Test
+    public void matchesSharedPythonGoldenFixture() {
+        JsonObject fixture = new JsonParser().parse(new InputStreamReader(
+            getClass().getClassLoader().getResourceAsStream("event-feature-parity.json")))
+            .getAsJsonObject();
+        long asOf = fixture.get("as_of_time").getAsLong();
+        EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
+        for (JsonElement element : fixture.getAsJsonArray("events")) {
+            JsonObject value = element.getAsJsonObject();
+            Event event = event(value.get("user_id").getAsString(), value.get("item_id").getAsString(),
+                value.get("scene").getAsString(), value.get("type").getAsString(),
+                value.get("value").getAsString(), value.get("time").getAsString());
+            event.setTraceId(value.get("trace_id").getAsString());
+            for (FeatureUpdate update : FeatureUpdates.fromEvent(event)) {
+                if ("user".equals(update.getEntityType()) && update.getEventTime() <= asOf) {
+                    accumulator.add(update);
+                }
+            }
+        }
+        FeatureSnapshot snapshot = accumulator.snapshot(asOf);
+        JsonObject expected = fixture.getAsJsonObject("expected_user");
+        for (String name : snapshot.getFeatures().keySet()) {
+            assertEquals(name, expected.get(name).getAsDouble(),
+                snapshot.getFeatures().get(name), 0d);
+        }
     }
 
     private static Event event(String user, String item, String scene, String type,

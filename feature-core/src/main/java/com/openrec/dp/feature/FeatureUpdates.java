@@ -13,7 +13,8 @@ public final class FeatureUpdates {
         if (event == null || blank(event.getUserId()) || blank(event.getItemId())) {
             return Collections.emptyList();
         }
-        long time = parseLong(event.getTime());
+        Long time = parseLong(event.getTime());
+        if (time == null) { return Collections.emptyList(); }
         double value = parseDouble(event.getValue());
         return Arrays.asList(
             update("user", event.getUserId(), event.getItemId(), event, time, value),
@@ -34,14 +35,27 @@ public final class FeatureUpdates {
         update.setEventType(event.getType());
         update.setEventTime(time);
         update.setValue(value);
+        update.setEventIdentity(identity(event, time));
         return update;
     }
 
-    private static long parseLong(String value) {
-        try { return Long.parseLong(value); } catch (Exception ignored) { return 0L; }
+    private static Long parseLong(String value) {
+        try {
+            double parsed = Double.parseDouble(value);
+            return Double.isFinite(parsed) && parsed == Math.rint(parsed) ? (long)parsed : null;
+        } catch (Exception ignored) { return null; }
     }
 
     private static double parseDouble(String value) {
         try { return Double.parseDouble(value); } catch (Exception ignored) { return 0d; }
     }
+
+    private static String identity(Event event, long time) {
+        if (!blank(event.getTraceId())) { return "trace:" + event.getTraceId(); }
+        return "fields:" + event.getUserId() + "\u001f" + event.getItemId() + "\u001f"
+            + text(event.getScene()) + "\u001f" + text(event.getType())
+            + "\u001f" + time;
+    }
+
+    private static String text(String value) { return value == null ? "" : value; }
 }
