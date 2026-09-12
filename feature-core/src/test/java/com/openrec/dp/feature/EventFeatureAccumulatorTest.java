@@ -109,6 +109,42 @@ public class EventFeatureAccumulatorTest {
     }
 
     @Test
+    public void productionSnapshotUsesInjectedWallClockAndPreservesInclusiveWindows() {
+        long wallClock = 3000000L;
+        EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
+        accumulator.add(FeatureUpdates.fromEvent(event(
+            "u", "i30", "s", "expose", "1", Long.toString(wallClock - 30 * 86400L))).get(0));
+        accumulator.add(FeatureUpdates.fromEvent(event(
+            "u", "i7", "s", "click", "1", Long.toString(wallClock - 7 * 86400L))).get(0));
+        accumulator.add(FeatureUpdates.fromEvent(event(
+            "u", "i1", "s", "buy", "1", Long.toString(wallClock - 86400L))).get(0));
+
+        FeatureSnapshot atBoundary = accumulator.currentSnapshot(wallClock);
+        assertEquals(wallClock, atBoundary.getAsOfTime());
+        assertEquals(86400d, atBoundary.getFeatures().get("event_recency_seconds"), 0d);
+        assertEquals(1d, atBoundary.getFeatures().get("event_count_1d"), 0d);
+        assertEquals(2d, atBoundary.getFeatures().get("event_count_7d"), 0d);
+        assertEquals(3d, atBoundary.getFeatures().get("event_count_30d"), 0d);
+
+        FeatureSnapshot afterBoundary = accumulator.currentSnapshot(wallClock + 1);
+        assertEquals(0d, afterBoundary.getFeatures().get("event_count_1d"), 0d);
+        assertEquals(1d, afterBoundary.getFeatures().get("event_count_7d"), 0d);
+        assertEquals(2d, afterBoundary.getFeatures().get("event_count_30d"), 0d);
+    }
+
+    @Test
+    public void productionSnapshotUsesFutureEventAsClockFloor() {
+        EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
+        accumulator.add(FeatureUpdates.fromEvent(event(
+            "u", "i", "s", "click", "1", "200")).get(0));
+
+        FeatureSnapshot snapshot = accumulator.currentSnapshot(100);
+        assertEquals(200L, snapshot.getAsOfTime());
+        assertEquals(0d, snapshot.getFeatures().get("event_recency_seconds"), 0d);
+        assertEquals(1d, snapshot.getFeatures().get("event_count_1d"), 0d);
+    }
+
+    @Test
     public void matchesSharedPythonGoldenFixture() {
         JsonObject fixture = new JsonParser().parse(new InputStreamReader(
             getClass().getClassLoader().getResourceAsStream("event-feature-parity.json")))

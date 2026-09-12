@@ -88,7 +88,12 @@ public class EventFeatureAccumulator implements Serializable {
 
     /** Materialize at wall-clock time for an online serving snapshot. */
     public FeatureSnapshot currentSnapshot() {
-        return snapshot(Math.max(lastTime, System.currentTimeMillis() / 1000L));
+        return currentSnapshot(System.currentTimeMillis() / 1000L);
+    }
+
+    /** Deterministic production adapter for tests and callers with an authoritative clock. */
+    public FeatureSnapshot currentSnapshot(long wallClockEpochSeconds) {
+        return snapshot(Math.max(lastTime, wallClockEpochSeconds));
     }
 
     public FeatureSnapshot snapshot(long asOfTime) {
