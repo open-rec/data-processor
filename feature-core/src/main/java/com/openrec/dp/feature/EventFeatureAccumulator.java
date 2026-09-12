@@ -25,16 +25,46 @@ public class EventFeatureAccumulator implements Serializable {
     private Set<String> counterparts = new HashSet<>();
     private Map<String, Long> typeCounts = new HashMap<>();
     private TreeMap<Long, Long> timeCounts = new TreeMap<>();
-    private Set<String> seenEvents = new HashSet<>();
+    private Map<String, FeatureUpdate> events = new HashMap<>();
+    private Map<String, Long> mutationTimes = new HashMap<>();
 
     public FeatureSnapshot add(FeatureUpdate update) {
-        if (update.getEventIdentity() != null && !seenEvents.add(update.getEventIdentity())) {
+        String identity = update.getEventIdentity();
+        long previousMutation = mutationTimes.getOrDefault(identity, Long.MIN_VALUE);
+        if (identity == null || update.getMutationTime() < previousMutation) {
             return snapshot(lastTime);
         }
         if (entityId == null) {
             entityType = update.getEntityType();
             entityId = update.getEntityId();
         }
+        // Equal mutation times are idempotent. A DELETE wins a tie so replay order cannot resurrect.
+        if (update.getMutationTime() == previousMutation && !update.isDeleted()) {
+            return snapshot(lastTime);
+        }
+        mutationTimes.put(identity, update.getMutationTime());
+        FeatureUpdate previous = events.get(identity);
+        if (update.isDeleted()) {
+            events.remove(identity);
+            if (previous != null) { rebuild(); }
+        } else {
+            events.put(identity, update);
+            if (previous == null) { addContribution(update); }
+            else { rebuild(); }
+        }
+        return snapshot(lastTime);
+    }
+
+    private void rebuild() {
+        count = 0L; valueSum = 0d; firstTime = Long.MAX_VALUE; lastTime = 0L;
+        activeDays.clear(); scenes.clear(); counterparts.clear(); typeCounts.clear();
+        timeCounts.clear();
+        for (FeatureUpdate update : events.values()) {
+            addContribution(update);
+        }
+    }
+
+    private void addContribution(FeatureUpdate update) {
         count++;
         valueSum += update.getValue();
         firstTime = Math.min(firstTime, update.getEventTime());
@@ -48,11 +78,17 @@ public class EventFeatureAccumulator implements Serializable {
         if (CATALOG.getEventTypes().contains(type)) {
             typeCounts.put(type, typeCounts.getOrDefault(type, 0L) + 1);
         }
-        timeCounts.put(update.getEventTime(), timeCounts.getOrDefault(update.getEventTime(), 0L) + 1);
-        // Only the largest online window needs individual timestamps. All-time totals remain above.
-        long largestWindow = Collections.max(CATALOG.getWindows());
-        timeCounts.headMap(lastTime - largestWindow, false).clear();
-        return snapshot(lastTime);
+        timeCounts.put(update.getEventTime(), timeCounts.getOrDefault(
+            update.getEventTime(), 0L) + 1);
+        if (count > 0) {
+            long largestWindow = Collections.max(CATALOG.getWindows());
+            timeCounts.headMap(lastTime - largestWindow, false).clear();
+        }
+    }
+
+    /** Materialize at wall-clock time for an online serving snapshot. */
+    public FeatureSnapshot currentSnapshot() {
+        return snapshot(Math.max(lastTime, System.currentTimeMillis() / 1000L));
     }
 
     public FeatureSnapshot snapshot(long asOfTime) {
@@ -60,7 +96,7 @@ public class EventFeatureAccumulator implements Serializable {
         result.setEntityType(entityType);
         result.setEntityId(entityId);
         result.setAsOfTime(asOfTime);
-        result.setSourceWatermark(asOfTime);
+        result.setSourceWatermark(lastTime);
         result.setCatalogVersion(CATALOG.getVersion());
         result.setCatalogSha256(CATALOG.getSha256());
         Map<String, Double> values = new LinkedHashMap<>();
@@ -89,6 +125,7 @@ public class EventFeatureAccumulator implements Serializable {
             throw new IllegalStateException("feature implementation differs from catalog for " + entityType);
         }
         result.setFeatures(values);
+        result.setRecentEventTimeCounts(new LinkedHashMap<>(timeCounts));
         return result;
     }
 }

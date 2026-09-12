@@ -12,6 +12,8 @@ public class FeatureSnapshot implements Serializable {
     private int catalogVersion;
     private String catalogSha256;
     private Map<String, Double> features = new LinkedHashMap<>();
+    /** Event-time histogram retained for request-time window decay in rank-engine. */
+    private Map<Long, Long> recentEventTimeCounts = new LinkedHashMap<>();
 
     public String redisKey() { return "feature:" + entityType + ":{" + entityId + "}"; }
     public String getEntityType() { return entityType; }
@@ -28,4 +30,6 @@ public class FeatureSnapshot implements Serializable {
     public void setCatalogSha256(String value) { this.catalogSha256 = value; }
     public Map<String, Double> getFeatures() { return features; }
     public void setFeatures(Map<String, Double> value) { this.features = value; }
+    public Map<Long, Long> getRecentEventTimeCounts() { return recentEventTimeCounts; }
+    public void setRecentEventTimeCounts(Map<Long, Long> value) { recentEventTimeCounts = value; }
 }

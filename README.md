@@ -19,7 +19,7 @@ Each event updates both its user and item snapshot. Redis keys are `feature:user
 
 ## Durable Training Data
 
-Both jobs preserve the Kafka JSON byte-for-byte in HBase tables `openrec_user`, `openrec_item`, and `openrec_event`, under column `entity:json`. User and item ids are row keys; events use `traceId`, falling back to `time#userId#itemId#scene#type`. Tables are created idempotently when a task starts.
+Both jobs preserve the Kafka JSON byte-for-byte in HBase tables `openrec_user`, `openrec_item`, and `openrec_event`, under column `entity:json`. User and item ids are row keys; events use `eventId`, falling back to `time#userId#itemId#scene#type#traceId`. `traceId` is an attribution context and is not assumed to identify one action. Tables are created idempotently when a task starts.
 
 The same payloads are appended under
 `hdfs://namenode:8020/openrec/hive/{user,item,event}/dt=YYYY-MM-DD`. The UTC partition date comes

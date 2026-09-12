@@ -10,8 +10,8 @@ public class EntityRecordTest {
         assertEquals("u1", EntityRecord.fromJson("user", "{\"id\":\"u1\"}").getRowKey());
         assertEquals("i1", EntityRecord.fromJson("item", "{\"id\":\"i1\"}").getRowKey());
         assertEquals("t1", EntityRecord.fromJson("event",
-            "{\"traceId\":\"t1\",\"userId\":\"u1\",\"itemId\":\"i1\"}").getRowKey());
-        assertEquals("10#u1#i1#home#click", EntityRecord.fromJson("event",
+            "{\"eventId\":\"t1\",\"userId\":\"u1\",\"itemId\":\"i1\"}").getRowKey());
+        assertEquals("10#u1#i1#home#click#", EntityRecord.fromJson("event",
             "{\"time\":\"10\",\"userId\":\"u1\",\"itemId\":\"i1\",\"scene\":\"home\",\"type\":\"click\"}").getRowKey());
     }
 

@@ -38,10 +38,10 @@ public class EntityRecord implements Serializable {
         if ("event".equals(type)) {
             Event event = FeatureJson.fromJson(json, Event.class);
             if (event == null || blank(event.getUserId()) || blank(event.getItemId())) { return null; }
-            String key = blank(event.getTraceId())
-                ? part(event.getTime()) + "#" + event.getUserId() + "#" + event.getItemId()
+            String key = !blank(event.getEventId()) ? event.getEventId()
+                : part(event.getTime()) + "#" + event.getUserId() + "#" + event.getItemId()
                     + "#" + part(event.getScene()) + "#" + part(event.getType())
-                : event.getTraceId();
+                    + "#" + part(event.getTraceId());
             return new EntityRecord(type, key, json);
         }
         return null;

@@ -46,7 +46,7 @@ public class SparkFeatureJob {
             Event event = message == null ? null
                 : FeatureJson.fromJson(message.getDataJson(), Event.class);
             return event == null ? java.util.Collections.emptyIterator()
-                : FeatureUpdates.fromEvent(event).iterator();
+                : FeatureUpdates.fromEvent(event, message.isDelete(), message.getOccurredAt()).iterator();
         }, Encoders.kryo(FeatureUpdate.class));
         Dataset<FeatureSnapshot> snapshots = updates
             .groupByKey((MapFunction<FeatureUpdate, String>) FeatureUpdate::key, Encoders.STRING())
@@ -61,7 +61,7 @@ public class SparkFeatureJob {
         GroupState<EventFeatureAccumulator> state) {
         EventFeatureAccumulator accumulator = state.exists() ? state.get() : new EventFeatureAccumulator();
         FeatureSnapshot latest = null;
-        while (values.hasNext()) { latest = accumulator.add(values.next()); }
+        while (values.hasNext()) { accumulator.add(values.next()); latest = accumulator.currentSnapshot(); }
         state.update(accumulator);
         return latest == null ? java.util.Collections.emptyIterator()
             : java.util.Collections.singletonList(latest).iterator();

@@ -20,7 +20,8 @@ public class EventFeatureProcessFunction extends KeyedProcessFunction<String, Fe
         Collector<FeatureSnapshot> out) throws Exception {
         EventFeatureAccumulator accumulator = state.value();
         if (accumulator == null) { accumulator = new EventFeatureAccumulator(); }
-        out.collect(accumulator.add(value));
+        accumulator.add(value);
+        out.collect(accumulator.currentSnapshot());
         state.update(accumulator);
     }
 }

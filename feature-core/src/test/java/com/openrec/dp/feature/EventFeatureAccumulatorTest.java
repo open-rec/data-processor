@@ -59,13 +59,53 @@ public class EventFeatureAccumulatorTest {
     @Test
     public void deduplicatesTraceAndIgnoresEmptyScene() {
         Event event = event("u", "i", " ", "click", "2", "100");
-        event.setTraceId("same");
+        event.setEventId("same");
+        event.setTraceId("request");
         FeatureUpdate update = FeatureUpdates.fromEvent(event).get(0);
         EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
         accumulator.add(update);
         FeatureSnapshot result = accumulator.add(update);
         assertEquals(1d, result.getFeatures().get("event_count"), 0d);
         assertEquals(0d, result.getFeatures().get("event_unique_scene_count"), 0d);
+    }
+
+    @Test
+    public void traceContextDoesNotCollapseExposeAndClick() {
+        Event expose = event("u", "i", "s", "expose", "0", "100");
+        expose.setTraceId("request-1");
+        Event click = event("u", "i", "s", "click", "1", "101");
+        click.setTraceId("request-1");
+        EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
+        accumulator.add(FeatureUpdates.fromEvent(expose).get(0));
+        FeatureSnapshot result = accumulator.add(FeatureUpdates.fromEvent(click).get(0));
+        assertEquals(2d, result.getFeatures().get("event_count"), 0d);
+        assertEquals(1d, result.getFeatures().get("event_expose_count"), 0d);
+        assertEquals(1d, result.getFeatures().get("event_click_count"), 0d);
+    }
+
+    @Test
+    public void laterDeleteRetractsAndOlderMutationCannotResurrect() {
+        Event event = event("u", "i", "s", "click", "2", "100");
+        event.setEventId("event-1");
+        EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
+        accumulator.add(FeatureUpdates.fromEvent(event, false, 10).get(0));
+        FeatureSnapshot deleted = accumulator.add(
+            FeatureUpdates.fromEvent(event, true, 20).get(0));
+        assertEquals(0d, deleted.getFeatures().get("event_count"), 0d);
+        FeatureSnapshot staleInsert = accumulator.add(
+            FeatureUpdates.fromEvent(event, false, 15).get(0));
+        assertEquals(0d, staleInsert.getFeatures().get("event_count"), 0d);
+    }
+
+    @Test
+    public void windowsAndRecencyUseRequestedAsOfTime() {
+        Event event = event("u", "i", "s", "click", "1", "100");
+        EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
+        accumulator.add(FeatureUpdates.fromEvent(event).get(0));
+        FeatureSnapshot result = accumulator.snapshot(100 + 86400 + 1);
+        assertEquals(86401d, result.getFeatures().get("event_recency_seconds"), 0d);
+        assertEquals(0d, result.getFeatures().get("event_count_1d"), 0d);
+        assertEquals(1L, result.getRecentEventTimeCounts().get(100L).longValue());
     }
 
     @Test

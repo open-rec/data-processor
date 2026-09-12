@@ -11,6 +11,8 @@ public class FeatureUpdate implements Serializable {
     private double value;
     private long eventTime;
     private String eventIdentity;
+    private long mutationTime;
+    private boolean deleted;
 
     public String key() { return entityType + ":" + entityId; }
     public String getEntityType() { return entityType; }
@@ -29,4 +31,8 @@ public class FeatureUpdate implements Serializable {
     public void setEventTime(long value) { this.eventTime = value; }
     public String getEventIdentity() { return eventIdentity; }
     public void setEventIdentity(String value) { this.eventIdentity = value; }
+    public long getMutationTime() { return mutationTime; }
+    public void setMutationTime(long value) { this.mutationTime = value; }
+    public boolean isDeleted() { return deleted; }
+    public void setDeleted(boolean value) { this.deleted = value; }
 }

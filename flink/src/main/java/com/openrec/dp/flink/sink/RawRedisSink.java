@@ -1,6 +1,8 @@
 package com.openrec.dp.flink.sink;
 
 import java.util.Properties;
+import java.util.Arrays;
+import java.util.Collections;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -8,6 +10,7 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import com.openrec.dp.feature.FeatureJson;
 import com.openrec.dp.feature.DislikeRules;
 import com.openrec.dp.feature.EntityMessage;
+import com.openrec.dp.feature.FeatureUpdates;
 import com.openrec.proto.model.Event;
 import com.openrec.proto.model.Item;
 import com.openrec.proto.model.User;
@@ -34,12 +37,16 @@ public class RawRedisSink extends RichSinkFunction<String> {
         if ("user".equals(type)) {
             User user = FeatureJson.fromJson(json, User.class);
             if (user != null && user.getId() != null) {
+                if (!acceptMutation(jedis, "mutation:user:{" + user.getId() + "}",
+                                    message.getOccurredAt(), message.isDelete())) { return; }
                 if (message.isDelete()) { jedis.del("user:{" + user.getId() + "}"); }
                 else { jedis.set("user:{" + user.getId() + "}", json); }
             }
         } else if ("item".equals(type)) {
             Item item = FeatureJson.fromJson(json, Item.class);
             if (item != null && item.getId() != null) {
+                if (!acceptMutation(jedis, "mutation:item:{" + item.getId() + "}",
+                                    message.getOccurredAt(), message.isDelete())) { return; }
                 if (message.isDelete()) {
                     String existing = jedis.get("item:{" + item.getId() + "}");
                     Item old = FeatureJson.fromJson(existing, Item.class);
@@ -59,19 +66,36 @@ public class RawRedisSink extends RichSinkFunction<String> {
         } else {
             Event event = FeatureJson.fromJson(json, Event.class);
             if (event != null && event.getUserId() != null && event.getItemId() != null) {
+                String identity = FeatureUpdates.identity(event);
+                if (identity == null || !acceptMutation(jedis, "mutation:event:{" + identity + "}",
+                    message.getOccurredAt(), message.isDelete())) { return; }
                 String key = "event:{" + event.getUserId() + "}:" + event.getScene() + ":" + event.getType();
                 if ("dislike".equalsIgnoreCase(event.getType())) {
                     for (String rule : DislikeRules.parse(event.getValue())) {
-                        jedis.zadd(key, parse(event.getTime()), rule);
+                        if (message.isDelete()) { jedis.zrem(key, rule); }
+                        else { jedis.zadd(key, parse(event.getTime()), rule); }
                     }
                 } else {
-                    jedis.zadd(key, parse(event.getTime()), event.getItemId());
+                    if (message.isDelete()) { jedis.zrem(key, event.getItemId()); }
+                    else { jedis.zadd(key, parse(event.getTime()), event.getItemId()); }
                 }
             }
         }
     }
     private static double parse(String value) {
         try { return Double.parseDouble(value); } catch (Exception ignored) { return 0d; }
+    }
+    private static boolean acceptMutation(JedisPooled jedis, String key, long occurredAt,
+        boolean deleted) {
+        String script = "local old=redis.call('GET',KEYS[1]); "
+            + "local incoming=tonumber(ARGV[1]); local tomb=tonumber(ARGV[2]); "
+            + "if old then local sep=string.find(old,':'); local ts=tonumber(string.sub(old,1,sep-1)); "
+            + "local was_tomb=tonumber(string.sub(old,sep+1)); "
+            + "if incoming < ts or (incoming == ts and tomb < was_tomb) then return 0 end end; "
+            + "redis.call('SET',KEYS[1],ARGV[1]..':'..ARGV[2]); return 1";
+        Object result = jedis.eval(script, Collections.singletonList(key),
+            Arrays.asList(Long.toString(occurredAt), deleted ? "1" : "0"));
+        return Long.valueOf(1L).equals(result);
     }
     @Override public void close() { if (jedis != null) { jedis.close(); } }
 }

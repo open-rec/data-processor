@@ -14,6 +14,7 @@ public class EventToFeatureUpdates implements FlatMapFunction<String, FeatureUpd
         EntityMessage message = EntityMessage.parse("event", json);
         Event event = message == null ? null : FeatureJson.fromJson(message.getDataJson(), Event.class);
         if (event == null) { return; }
-        FeatureUpdates.fromEvent(event).forEach(out::collect);
+        FeatureUpdates.fromEvent(event, message.isDelete(), message.getOccurredAt())
+            .forEach(out::collect);
     }
 }
