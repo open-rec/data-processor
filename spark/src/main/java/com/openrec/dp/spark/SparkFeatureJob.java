@@ -10,6 +10,7 @@ import java.util.Properties;
 
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.MapFunction;
+import org.apache.spark.api.java.function.MapGroupsFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
@@ -18,6 +19,7 @@ import org.apache.spark.sql.streaming.GroupState;
 import org.apache.spark.sql.streaming.GroupStateTimeout;
 import org.apache.spark.sql.streaming.OutputMode;
 import org.apache.spark.sql.streaming.StreamingQuery;
+import org.apache.spark.sql.KeyValueGroupedDataset;
 
 import com.openrec.dp.feature.EventFeatureAccumulator;
 import com.openrec.dp.feature.EntityMessage;
@@ -72,6 +74,18 @@ public class SparkFeatureJob {
         EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
         for (FeatureUpdate value : values) { accumulator.add(value); }
         return accumulator.snapshot(asOfTime);
+    }
+
+    /** Exercise Spark's real typed shuffle/group execution for parity and micro-batch tests. */
+    public static Dataset<FeatureSnapshot> aggregateBatchForParity(
+        Dataset<FeatureUpdate> updates, final long asOfTime) {
+        KeyValueGroupedDataset<String, FeatureUpdate> grouped = updates.groupByKey(
+            (MapFunction<FeatureUpdate, String>) FeatureUpdate::key, Encoders.STRING());
+        return grouped.mapGroups((MapGroupsFunction<String, FeatureUpdate, FeatureSnapshot>) (key, values) -> {
+            EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
+            while (values.hasNext()) { accumulator.add(values.next()); }
+            return accumulator.snapshot(asOfTime);
+        }, Encoders.bean(FeatureSnapshot.class));
     }
 
     private static Dataset<Row> kafka(SparkSession spark, Properties p, String topic) {
