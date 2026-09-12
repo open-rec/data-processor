@@ -40,11 +40,14 @@ older development table before deploying this version (external data is not dele
 algorithm jobs register only their requested day with `ALTER TABLE ADD IF NOT EXISTS PARTITION`.
 
 Kafka messages use the version 1 mutation envelope published by `rec-server`: entity type,
-`INSERT`/`UPDATE`/`DELETE` operation, event time, and the entity payload. Both processors also accept
+`INSERT`/`UPDATE`/`DELETE` operation, millisecond `occurredAt`, and the entity payload. Both processors also accept
 legacy bare-entity JSON as `INSERT` during the compatibility window. `INSERT` and `UPDATE` are
 upserts. User and item deletes remove Redis serving state and append tombstones to historical
-storage so cumulative offline readers do not resurrect deleted entities. Event deletion is not
-currently accepted by `rec-server`; event history remains append-only. See
+storage so cumulative offline readers do not resurrect deleted entities. Event mutations use
+`eventId` as their stable identity (with a deterministic field-based fallback), ignore older
+out-of-order mutations, and let `DELETE` win an equal-`occurredAt` tie. Event tombstones retract the
+event from Redis aggregates while remaining in append-only history for point-in-time offline
+resolution. See
 [`rec-proto`](https://github.com/open-rec/rec-server/tree/master/proto) for the shared mutation
 contract.
 
@@ -91,7 +94,12 @@ run the cluster deletion, persistence, and recall acceptance flows together.
 
 ## Testing
 
-`feature-core` unit tests validate user/item aggregation, rolling windows, action counts, and click-rate semantics. When changing a feature in `rec-algorithm`, update the shared contract and its tests in the same change so online and offline definitions stay aligned.
+`feature-core` unit tests validate user/item aggregation, rolling windows, action counts,
+click-rate semantics, deduplication, and mutation-aware retraction. The shared golden fixture is
+executed by Python, feature-core, a real Flink keyed-state harness, and a Spark micro-batch test,
+including item-side expected rows, duplicates, invalid/future events, out-of-order insert/delete,
+and equal-time delete precedence. When changing a feature in `rec-algorithm`, update the shared
+contract and every fixture copy in the same change so online and offline definitions stay aligned.
 
 `mvn clean test` is the local unit boundary. Redis, Kafka, HBase, Hive, checkpoint recovery, and
 DELETE tombstones are verified by the distribution-level cluster acceptance flow in
