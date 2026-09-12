@@ -120,8 +120,15 @@ public class EventFeatureAccumulatorTest {
             Event event = event(value.get("user_id").getAsString(), value.get("item_id").getAsString(),
                 value.get("scene").getAsString(), value.get("type").getAsString(),
                 value.get("value").getAsString(), value.get("time").getAsString());
+            if (value.has("event_id")) {
+                event.setEventId(value.get("event_id").getAsString());
+            }
             event.setTraceId(value.get("trace_id").getAsString());
-            for (FeatureUpdate update : FeatureUpdates.fromEvent(event)) {
+            boolean deleted = value.has("operation")
+                && "DELETE".equals(value.get("operation").getAsString());
+            long mutationTime = value.has("occurred_at")
+                ? value.get("occurred_at").getAsLong() : 0;
+            for (FeatureUpdate update : FeatureUpdates.fromEvent(event, deleted, mutationTime)) {
                 if ("user".equals(update.getEntityType()) && update.getEventTime() <= asOf) {
                     accumulator.add(update);
                 }
