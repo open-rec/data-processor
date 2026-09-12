@@ -24,4 +24,11 @@ public class EventFeatureProcessFunction extends KeyedProcessFunction<String, Fe
         out.collect(accumulator.currentSnapshot());
         state.update(accumulator);
     }
+
+    /** Deterministic batch adapter used by the cross-engine feature parity gate. */
+    public static FeatureSnapshot aggregateForParity(Iterable<FeatureUpdate> values, long asOfTime) {
+        EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
+        for (FeatureUpdate value : values) { accumulator.add(value); }
+        return accumulator.snapshot(asOfTime);
+    }
 }

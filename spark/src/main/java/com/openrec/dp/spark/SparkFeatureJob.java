@@ -67,6 +67,13 @@ public class SparkFeatureJob {
             : java.util.Collections.singletonList(latest).iterator();
     }
 
+    /** Deterministic batch adapter used by the cross-engine feature parity gate. */
+    public static FeatureSnapshot aggregateForParity(Iterable<FeatureUpdate> values, long asOfTime) {
+        EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
+        for (FeatureUpdate value : values) { accumulator.add(value); }
+        return accumulator.snapshot(asOfTime);
+    }
+
     private static Dataset<Row> kafka(SparkSession spark, Properties p, String topic) {
         return spark.readStream().format("kafka")
             .option("kafka.bootstrap.servers", p.getProperty("kafka.servers"))
