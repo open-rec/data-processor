@@ -9,6 +9,13 @@
 
 ## Feature Contract
 
+The canonical feature registry is `model/feature/catalog/feature.catalog.json`; its packaged copy
+is `feature-core/src/main/resources/openrec-feature-catalog.json`. Synchronize it with the model
+repository's `publish_catalog.py` and use `--check` to detect drift. Model training selects subsets
+of these global features; selecting a subset does not change the streaming producer configuration.
+New features require matching implementations here and in rec-algorithm, plus any required
+historical backfill, before rec-console can offer them for training and deployment.
+
 Feature formulas live in `feature-core`; Flink and Spark only supply engine-specific state and sinks. Raw user fields (`id`, device/profile/location/tags and register/login time) and item fields (`id`, title/category/tags/scene, lifecycle/status and weight) are retained unchanged. Event streams generate the same behavioral columns as `rec-algorithm/algorithm/feature/event_feature.py`:
 
 - totals: `event_count`, value sum/mean, active days, unique scenes and counterpart count;
