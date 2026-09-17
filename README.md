@@ -16,7 +16,7 @@ of these global features; selecting a subset does not change the streaming produ
 New features require matching implementations here and in rec-algorithm, plus any required
 historical backfill, before rec-console can offer them for training and deployment.
 
-Feature formulas live in `feature-core`; Flink and Spark only supply engine-specific state and sinks. Raw user fields (`id`, device/profile/location/tags and register/login time) and item fields (`id`, title/category/tags/scene, lifecycle/status and weight) are retained unchanged. Event streams generate the same behavioral columns as `rec-algorithm/algorithm/feature/event_feature.py`:
+Feature formulas live in `feature-core`; Flink and Spark only supply engine-specific state and sinks. Raw user fields (`id`, device/profile/location/tags and register/login time) and item fields (`id`, title/category/subcategory/tags/scene, lifecycle/status and weight) are retained unchanged. Title, subcategory, tags and publication time are the online source fields for the content encoders shared by rec-algorithm and rank-engine; the stream layer preserves them without lossy preprocessing. Event streams generate the same behavioral columns as `rec-algorithm/algorithm/feature/event_feature.py`:
 
 - totals: `event_count`, value sum/mean, active days, unique scenes and counterpart count;
 - time: first/last event, recency, and 1/7/30-day counts;

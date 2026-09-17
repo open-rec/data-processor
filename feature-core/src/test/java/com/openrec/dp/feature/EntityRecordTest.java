@@ -28,4 +28,12 @@ public class EntityRecordTest {
         assertEquals(true, message.isDelete());
         assertEquals("i1", EntityRecord.fromJson("item", value).getRowKey());
     }
+
+    @Test public void preservesItemContentForRealtimeServing() {
+        String value = "{\"id\":\"i1\",\"title\":\"Cold Start News\","
+            + "\"category\":\"news\",\"subcategory\":\"local\","
+            + "\"tags\":\"breaking\",\"pubTime\":\"1700000000\"}";
+        EntityRecord record = EntityRecord.fromJson("item", value);
+        assertEquals(value, record.getJson());
+    }
 }
