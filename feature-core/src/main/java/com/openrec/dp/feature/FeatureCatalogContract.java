@@ -20,14 +20,17 @@ public final class FeatureCatalogContract {
     private final int version;
     private final String sha256;
     private final List<Long> windows;
+    private final List<WindowFeature> windowFeatures;
     private final Set<String> eventTypes;
     private final Set<String> userColumns;
     private final Set<String> itemColumns;
 
     private FeatureCatalogContract(int version, String sha256, List<Long> windows,
+        List<WindowFeature> windowFeatures,
         Set<String> eventTypes, Set<String> userColumns, Set<String> itemColumns) {
         this.version = version; this.sha256 = sha256;
         this.windows = Collections.unmodifiableList(windows);
+        this.windowFeatures = Collections.unmodifiableList(windowFeatures);
         this.eventTypes = Collections.unmodifiableSet(eventTypes);
         this.userColumns = Collections.unmodifiableSet(userColumns);
         this.itemColumns = Collections.unmodifiableSet(itemColumns);
@@ -37,6 +40,7 @@ public final class FeatureCatalogContract {
     public int getVersion() { return version; }
     public String getSha256() { return sha256; }
     public List<Long> getWindows() { return windows; }
+    public List<WindowFeature> getWindowFeatures() { return windowFeatures; }
     public Set<String> getEventTypes() { return eventTypes; }
     public Set<String> getColumns(String entity) {
         return "user".equals(entity) ? userColumns : itemColumns;
@@ -52,6 +56,7 @@ public final class FeatureCatalogContract {
             byte[] raw = output.toByteArray();
             JsonObject root = new JsonParser().parse(new String(raw, "UTF-8")).getAsJsonObject();
             Set<Long> windows = new LinkedHashSet<>();
+            List<WindowFeature> windowFeatures = new ArrayList<>();
             Set<String> types = new LinkedHashSet<>();
             Set<String> users = new LinkedHashSet<>();
             Set<String> items = new LinkedHashSet<>();
@@ -64,17 +69,40 @@ public final class FeatureCatalogContract {
                 ("user".equals(entity) ? users : items).add(name);
                 JsonObject aggregation = feature.getAsJsonObject("aggregation");
                 if (aggregation != null && aggregation.has("window_seconds")) {
-                    windows.add(aggregation.get("window_seconds").getAsLong());
+                    long seconds = aggregation.get("window_seconds").getAsLong();
+                    windows.add(seconds);
+                    if ("user".equals(entity)) {
+                        String filter = aggregation.has("filter")
+                            ? aggregation.getAsJsonObject("filter").get("type").getAsString() : null;
+                        windowFeatures.add(new WindowFeature(name, seconds,
+                            aggregation.get("operator").getAsString(), filter));
+                    }
                 }
                 if (aggregation != null && aggregation.has("filter")) {
                     types.add(aggregation.getAsJsonObject("filter").get("type").getAsString());
                 }
             }
             return new FeatureCatalogContract(root.get("catalog_version").getAsInt(), hex(raw),
-                new ArrayList<>(windows), types, users, items);
+                new ArrayList<>(windows), windowFeatures, types, users, items);
         } catch (Exception e) {
             throw new IllegalStateException("invalid feature catalog", e);
         }
+    }
+
+    public static final class WindowFeature {
+        private final String name;
+        private final long seconds;
+        private final String operator;
+        private final String eventType;
+
+        private WindowFeature(String name, long seconds, String operator, String eventType) {
+            this.name = name; this.seconds = seconds; this.operator = operator;
+            this.eventType = eventType;
+        }
+        public String getName() { return name; }
+        public long getSeconds() { return seconds; }
+        public String getOperator() { return operator; }
+        public String getEventType() { return eventType; }
     }
 
     private static String hex(byte[] raw) throws Exception {

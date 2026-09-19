@@ -115,10 +115,16 @@ public class EventFeatureAccumulator implements Serializable {
         values.put("event_first_time", count == 0 ? 0d : (double)firstTime);
         values.put("event_last_time", (double)lastTime);
         values.put("event_recency_seconds", (double)Math.max(0L, asOfTime - lastTime));
-        for (long seconds : CATALOG.getWindows()) {
-            long from = asOfTime - seconds;
-            long windowCount = timeCounts.tailMap(from, true).values().stream().mapToLong(Long::longValue).sum();
-            values.put("event_count_" + (seconds / DAY) + "d", (double)windowCount);
+        for (FeatureCatalogContract.WindowFeature feature : CATALOG.getWindowFeatures()) {
+            double aggregate = 0d;
+            long from = asOfTime - feature.getSeconds();
+            for (FeatureUpdate update : events.values()) {
+                if (update.getEventTime() < from || update.getEventTime() > asOfTime) { continue; }
+                if (feature.getEventType() != null
+                    && !feature.getEventType().equals(update.getEventType())) { continue; }
+                aggregate += "sum".equals(feature.getOperator()) ? update.getValue() : 1d;
+            }
+            values.put(feature.getName(), aggregate);
         }
         for (String type : CATALOG.getEventTypes()) {
             values.put("event_" + type + "_count", (double)typeCounts.getOrDefault(type, 0L));

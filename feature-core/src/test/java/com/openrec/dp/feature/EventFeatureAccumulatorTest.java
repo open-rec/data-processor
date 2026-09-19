@@ -39,7 +39,9 @@ public class EventFeatureAccumulatorTest {
             "event_count", "event_value_sum", "event_value_mean", "event_active_days",
             "event_unique_scene_count", "event_unique_item_count", "event_first_time",
             "event_last_time", "event_recency_seconds", "event_count_1d", "event_count_7d",
-            "event_count_30d", "event_click_count", "event_expose_count", "event_buy_count",
+            "event_count_30d", "event_expose_count_5m", "event_value_sum_5m",
+            "event_expose_count_1h", "event_value_sum_1h", "event_expose_count_24h",
+            "event_value_sum_24h", "event_click_count", "event_expose_count", "event_buy_count",
             "event_collect_count", "event_stay_count", "event_click_rate")),
             snapshot.getFeatures().keySet());
 
@@ -109,6 +111,16 @@ public class EventFeatureAccumulatorTest {
     }
 
     @Test
+    public void shortWindowsFilterExposureAndSumGenericEventValue() {
+        EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
+        accumulator.add(FeatureUpdates.fromEvent(event("u", "i", "s", "expose", "2", "100")).get(0));
+        accumulator.add(FeatureUpdates.fromEvent(event("u", "i", "s", "click", "3", "350")).get(0));
+        FeatureSnapshot result = accumulator.snapshot(400);
+        assertEquals(1d, result.getFeatures().get("event_expose_count_5m"), 0d);
+        assertEquals(5d, result.getFeatures().get("event_value_sum_5m"), 0d);
+    }
+
+    @Test
     public void productionSnapshotUsesInjectedWallClockAndPreservesInclusiveWindows() {
         long wallClock = 3000000L;
         EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
@@ -172,7 +184,7 @@ public class EventFeatureAccumulatorTest {
         }
         FeatureSnapshot snapshot = accumulator.snapshot(asOf);
         JsonObject expected = fixture.getAsJsonObject("expected_user");
-        for (String name : snapshot.getFeatures().keySet()) {
+        for (String name : expected.keySet()) {
             assertEquals(name, expected.get(name).getAsDouble(),
                 snapshot.getFeatures().get(name), 0d);
         }
