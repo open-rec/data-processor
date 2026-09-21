@@ -26,6 +26,13 @@ jobs:
         with:
           repository: open-rec/rec-server
           path: rec-server
+      - name: Reject tracked Maven output
+        working-directory: data-processor
+        run: |
+          if git ls-files | grep -Eq '(^|/)target/'; then
+            echo "Maven target files must not be tracked"
+            exit 1
+          fi
       - name: Set up Java 8
         uses: actions/setup-java@v5
         with:
