@@ -5,6 +5,8 @@ import java.util.Collections;
 import java.util.List;
 
 import com.openrec.proto.model.Event;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 public final class FeatureUpdates {
     private FeatureUpdates() {}
@@ -44,7 +46,37 @@ public final class FeatureUpdates {
         update.setEventIdentity(identity(event, time));
         update.setDeleted(deleted);
         update.setMutationTime(mutationTime);
+        JsonObject context = itemContext(event);
+        if (context != null) {
+            update.setCategory(text(context, "category"));
+            update.setSubcategory(text(context, "subcategory"));
+            Double price = number(context, "price");
+            if (price != null && price >= 0d) {
+                update.setPrice(price); update.setHasPrice(true);
+            }
+        }
         return update;
+    }
+
+    private static JsonObject itemContext(Event event) {
+        try {
+            JsonElement ext = new com.google.gson.Gson().toJsonTree(event.getExtFields());
+            if (!ext.isJsonObject()) { return null; }
+            JsonElement value = ext.getAsJsonObject().get("_openrecItemContext");
+            return value != null && value.isJsonObject() ? value.getAsJsonObject() : null;
+        } catch (RuntimeException ignored) { return null; }
+    }
+
+    private static String text(JsonObject value, String name) {
+        JsonElement element = value.get(name);
+        return element == null || element.isJsonNull() ? null : element.getAsString();
+    }
+
+    private static Double number(JsonObject value, String name) {
+        try {
+            double result = value.get(name).getAsDouble();
+            return Double.isFinite(result) ? result : null;
+        } catch (Exception ignored) { return null; }
     }
 
     private static Long parseLong(String value) {

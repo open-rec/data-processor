@@ -20,7 +20,11 @@ Feature formulas live in `feature-core`; Flink and Spark only supply engine-spec
 
 - totals: `event_count`, value sum/mean, active days, unique scenes and counterpart count;
 - time: first/last event, recency, and 1/7/30-day counts;
-- actions: click, expose, buy, collect and stay counts, plus click rate.
+- actions: click, expose, buy, collect and stay counts, plus the legacy labelled-event click rate;
+- conversion: standard CTR (`click / expose`), collect per click, buy per click and buy per collect,
+  each over lifetime and inclusive 1/7/30-day event-time windows.
+- commerce: weighted category/subcategory preferences and per-action, 1/7/30-day price statistics
+  from the immutable `_openrecItemContext` attached to each event.
 
 Each event updates both its user and item snapshot. Redis keys are `feature:user:{id}` and `feature:item:{id}`. Raw serving keys remain compatible with rec-server (`user:{id}`, `item:{id}`, `event:{userId}:scene:type`, and `new:{scene}`). A structured `dislike` value is expanded into `id:`, `category:`, and one or more `tag:` members so BlackNode can apply it online; other event members remain item IDs. `new:{scene}` is a sorted set scored by `pubTime`; `redis.new.max-items` bounds every scene so the realtime projection cannot grow without limit.
 

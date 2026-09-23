@@ -4,9 +4,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import java.util.List;
-import java.util.Arrays;
-import java.util.LinkedHashSet;
 import java.io.InputStreamReader;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.junit.Test;
 
@@ -33,16 +33,10 @@ public class EventFeatureAccumulatorTest {
         assertEquals(2d, snapshot.getFeatures().get("event_unique_scene_count"), 0d);
         assertEquals(2d, snapshot.getFeatures().get("event_unique_item_count"), 0d);
         assertEquals(0.5d, snapshot.getFeatures().get("event_click_rate"), 0d);
+        assertEquals(1d, snapshot.getFeatures().get("event_ctr"), 0d);
         assertEquals(FeatureCatalogContract.get().getVersion(), snapshot.getCatalogVersion());
         assertEquals(FeatureCatalogContract.get().getSha256(), snapshot.getCatalogSha256());
-        assertEquals(new LinkedHashSet<>(Arrays.asList(
-            "event_count", "event_value_sum", "event_value_mean", "event_active_days",
-            "event_unique_scene_count", "event_unique_item_count", "event_first_time",
-            "event_last_time", "event_recency_seconds", "event_count_1d", "event_count_7d",
-            "event_count_30d", "event_expose_count_5m", "event_value_sum_5m",
-            "event_expose_count_1h", "event_value_sum_1h", "event_expose_count_24h",
-            "event_value_sum_24h", "event_click_count", "event_expose_count", "event_buy_count",
-            "event_collect_count", "event_stay_count", "event_click_rate")),
+        assertEquals(FeatureCatalogContract.get().getColumns("user"),
             snapshot.getFeatures().keySet());
 
         EventFeatureAccumulator item = new EventFeatureAccumulator();
@@ -121,6 +115,39 @@ public class EventFeatureAccumulatorTest {
     }
 
     @Test
+    public void conversionRatesUseActionDenominatorsAndWindows() {
+        EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
+        accumulator.add(FeatureUpdates.fromEvent(event("u", "i", "s", "expose", "1", "1")).get(0));
+        accumulator.add(FeatureUpdates.fromEvent(event("u", "i", "s", "expose", "1", "2")).get(0));
+        accumulator.add(FeatureUpdates.fromEvent(event("u", "i", "s", "click", "1", "3")).get(0));
+        accumulator.add(FeatureUpdates.fromEvent(event("u", "i", "s", "collect", "1", "4")).get(0));
+        accumulator.add(FeatureUpdates.fromEvent(event("u", "i", "s", "buy", "1", "5")).get(0));
+        accumulator.add(FeatureUpdates.fromEvent(event("u", "i", "s", "expose", "1", "200000")).get(0));
+        FeatureSnapshot result = accumulator.snapshot(200000);
+        assertEquals(1d / 3d, result.getFeatures().get("event_ctr"), 0d);
+        assertEquals(1d, result.getFeatures().get("event_collect_per_click"), 0d);
+        assertEquals(1d, result.getFeatures().get("event_buy_per_click"), 0d);
+        assertEquals(1d, result.getFeatures().get("event_buy_per_collect"), 0d);
+        assertEquals(0d, result.getFeatures().get("event_ctr_1d"), 0d);
+    }
+
+    @Test
+    public void materializesFrozenCategoryAndPriceContext() {
+        Event click = event("u", "i1", "s", "click", "1", "100");
+        context(click, "books", "fiction", 10d);
+        Event buy = event("u", "i2", "s", "buy", "1", "200");
+        context(buy, "music", "vinyl", 30d);
+        EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
+        accumulator.add(FeatureUpdates.fromEvent(click).get(0));
+        FeatureSnapshot result = accumulator.add(FeatureUpdates.fromEvent(buy).get(0));
+        assertEquals("music,books", result.getStringFeatures().get("preferred_categories"));
+        assertEquals("vinyl,fiction", result.getStringFeatures().get("preferred_subcategories"));
+        assertEquals(20d, result.getFeatures().get("event_price_mean"), 0d);
+        assertEquals(10d, result.getFeatures().get("event_price_std"), 0d);
+        assertEquals(3d, result.getFeatures().get("event_buy_to_click_price_ratio"), 0d);
+    }
+
+    @Test
     public void productionSnapshotUsesInjectedWallClockAndPreservesInclusiveWindows() {
         long wallClock = 3000000L;
         EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
@@ -196,5 +223,12 @@ public class EventFeatureAccumulatorTest {
         event.setUserId(user); event.setItemId(item); event.setScene(scene);
         event.setType(type); event.setValue(value); event.setTime(time);
         return event;
+    }
+
+    private static void context(Event event, String category, String subcategory, double price) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("category", category); item.put("subcategory", subcategory); item.put("price", price);
+        Map<String, Object> ext = new LinkedHashMap<>(); ext.put("_openrecItemContext", item);
+        event.setExtFields(ext);
     }
 }

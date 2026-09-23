@@ -13,6 +13,10 @@ public class FeatureUpdate implements Serializable {
     private String eventIdentity;
     private long mutationTime;
     private boolean deleted;
+    private String category;
+    private String subcategory;
+    private double price;
+    private boolean hasPrice;
 
     public String key() { return entityType + ":" + entityId; }
     public String getEntityType() { return entityType; }
@@ -35,4 +39,13 @@ public class FeatureUpdate implements Serializable {
     public void setMutationTime(long value) { this.mutationTime = value; }
     public boolean isDeleted() { return deleted; }
     public void setDeleted(boolean value) { this.deleted = value; }
+    public String getCategory() { return category; }
+    public void setCategory(String value) { category = value; }
+    public String getSubcategory() { return subcategory; }
+    public void setSubcategory(String value) { subcategory = value; }
+    public double getPrice() { return price; }
+    public void setPrice(double value) { price = value; }
+    public boolean isHasPrice() { return hasPrice; }
+    public boolean getHasPrice() { return hasPrice; }
+    public void setHasPrice(boolean value) { hasPrice = value; }
 }
