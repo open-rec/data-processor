@@ -1,6 +1,6 @@
 package com.openrec.dp.feature;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -22,11 +22,16 @@ public final class FeatureUpdates {
         Long time = parseLong(event.getTime());
         if (time == null) { return Collections.emptyList(); }
         double value = parseDouble(event.getValue());
-        return Arrays.asList(
-            update("user", event.getUserId(), event.getItemId(), event, time, value,
-                deleted, mutationTime),
-            update("item", event.getItemId(), event.getUserId(), event, time, value,
-                deleted, mutationTime));
+        List<FeatureUpdate> updates = new ArrayList<>();
+        updates.add(update("user", event.getUserId(), event.getItemId(), event, time, value,
+            deleted, mutationTime));
+        updates.add(update("item", event.getItemId(), event.getUserId(), event, time, value,
+            deleted, mutationTime));
+        if (!blank(event.getSessionId())) {
+            updates.add(update("session", event.getSessionId(), event.getItemId(), event, time,
+                value, deleted, mutationTime));
+        }
+        return updates;
     }
 
     private static boolean blank(String value) {

@@ -18,6 +18,20 @@ import com.google.gson.JsonParser;
 
 public class EventFeatureAccumulatorTest {
     @Test
+    public void emitsAnIndependentSessionSnapshotWhenSessionIdIsPresent() {
+        Event event = event("u", "i", "s", "click", "2", "100");
+        event.setSessionId("session-1");
+        List<FeatureUpdate> updates = FeatureUpdates.fromEvent(event);
+        assertEquals(3, updates.size());
+        FeatureSnapshot snapshot = new EventFeatureAccumulator().add(updates.get(2));
+        assertEquals("session", snapshot.getEntityType());
+        assertEquals("session-1", snapshot.getEntityId());
+        assertEquals(1d, snapshot.getFeatures().get("event_unique_item_count"), 0d);
+        assertEquals(FeatureCatalogContract.get().getColumns("session"),
+            snapshot.getFeatures().keySet());
+    }
+
+    @Test
     public void matchesOfflineEventFeatureColumnsForUserAndItem() {
         Event click = event("u", "i1", "s1", "click", "2", "200000");
         Event expose = event("u", "i2", "s2", "expose", "0", "150000");

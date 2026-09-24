@@ -113,7 +113,8 @@ public class EventFeatureAccumulator implements Serializable {
         values.put("event_value_mean", count == 0 ? 0d : valueSum / count);
         values.put("event_active_days", (double)activeDays.size());
         values.put("event_unique_scene_count", (double)scenes.size());
-        values.put("event_unique_" + ("user".equals(entityType) ? "item" : "user") + "_count",
+        values.put("event_unique_" + (("user".equals(entityType) || "session".equals(entityType))
+            ? "item" : "user") + "_count",
             (double)counterparts.size());
         values.put("event_first_time", count == 0 ? 0d : (double)firstTime);
         values.put("event_last_time", (double)lastTime);

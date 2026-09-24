@@ -27,11 +27,14 @@ public final class FeatureCatalogContract {
     private final Set<String> itemColumns;
     private final Set<String> userStringColumns;
     private final Set<String> itemStringColumns;
+    private final Set<String> sessionColumns;
+    private final Set<String> sessionStringColumns;
 
     private FeatureCatalogContract(int version, String sha256, List<Long> windows,
         List<WindowFeature> windowFeatures, List<RateFeature> rateFeatures,
         Set<String> eventTypes, Set<String> userColumns, Set<String> itemColumns,
-        Set<String> userStringColumns, Set<String> itemStringColumns) {
+        Set<String> userStringColumns, Set<String> itemStringColumns,
+        Set<String> sessionColumns, Set<String> sessionStringColumns) {
         this.version = version; this.sha256 = sha256;
         this.windows = Collections.unmodifiableList(windows);
         this.windowFeatures = Collections.unmodifiableList(windowFeatures);
@@ -41,6 +44,8 @@ public final class FeatureCatalogContract {
         this.itemColumns = Collections.unmodifiableSet(itemColumns);
         this.userStringColumns = Collections.unmodifiableSet(userStringColumns);
         this.itemStringColumns = Collections.unmodifiableSet(itemStringColumns);
+        this.sessionColumns = Collections.unmodifiableSet(sessionColumns);
+        this.sessionStringColumns = Collections.unmodifiableSet(sessionStringColumns);
     }
 
     public static FeatureCatalogContract get() { return INSTANCE; }
@@ -51,10 +56,14 @@ public final class FeatureCatalogContract {
     public List<RateFeature> getRateFeatures() { return rateFeatures; }
     public Set<String> getEventTypes() { return eventTypes; }
     public Set<String> getColumns(String entity) {
-        return "user".equals(entity) ? userColumns : itemColumns;
+        if ("user".equals(entity)) { return userColumns; }
+        if ("session".equals(entity)) { return sessionColumns; }
+        return itemColumns;
     }
     public Set<String> getStringColumns(String entity) {
-        return "user".equals(entity) ? userStringColumns : itemStringColumns;
+        if ("user".equals(entity)) { return userStringColumns; }
+        if ("session".equals(entity)) { return sessionStringColumns; }
+        return itemStringColumns;
     }
 
     private static FeatureCatalogContract load() {
@@ -74,6 +83,8 @@ public final class FeatureCatalogContract {
             Set<String> items = new LinkedHashSet<>();
             Set<String> userStrings = new LinkedHashSet<>();
             Set<String> itemStrings = new LinkedHashSet<>();
+            Set<String> sessions = new LinkedHashSet<>();
+            Set<String> sessionStrings = new LinkedHashSet<>();
             JsonArray features = root.getAsJsonArray("features");
             for (JsonElement element : features) {
                 JsonObject feature = element.getAsJsonObject();
@@ -86,9 +97,11 @@ public final class FeatureCatalogContract {
                 String name = feature.get("name").getAsString();
                 boolean stringValue = "string".equals(feature.get("value_type").getAsString());
                 if (stringValue) {
-                    ("user".equals(entity) ? userStrings : itemStrings).add(name);
+                    ("user".equals(entity) ? userStrings :
+                        ("session".equals(entity) ? sessionStrings : itemStrings)).add(name);
                 } else {
-                    ("user".equals(entity) ? users : items).add(name);
+                    ("user".equals(entity) ? users :
+                        ("session".equals(entity) ? sessions : items)).add(name);
                 }
                 JsonObject aggregation = feature.getAsJsonObject("aggregation");
                 boolean directEvent = "event".equals(
@@ -118,7 +131,7 @@ public final class FeatureCatalogContract {
             }
             return new FeatureCatalogContract(root.get("catalog_version").getAsInt(), hex(raw),
                 new ArrayList<>(windows), windowFeatures, rateFeatures, types, users, items,
-                userStrings, itemStrings);
+                userStrings, itemStrings, sessions, sessionStrings);
         } catch (Exception e) {
             throw new IllegalStateException("invalid feature catalog", e);
         }
