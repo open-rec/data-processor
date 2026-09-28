@@ -58,21 +58,24 @@ final class RedisBatchWriter {
     }
 
     static StreamingQuery persistSnapshots(Dataset<FeatureSnapshot> input, Properties p) throws Exception {
-        String output = p.getProperty("hdfs.output") + "/features";
-        String checkpoint = p.getProperty("checkpoint.path") + "/features";
-        String host = p.getProperty("redis.host"); int port = Integer.parseInt(p.getProperty("redis.port"));
+        String checkpoint = p.getProperty("feature.checkpoint.path",
+            SparkFeatureJob.featureCheckpoint(p.getProperty("checkpoint.path")));
         return input.writeStream().outputMode("update").option("checkpointLocation", checkpoint)
-            .foreachBatch((batch, id) -> {
-                batch.toJSON().write().mode("append").text(output);
-                batch.foreachPartition(snapshots -> {
-                    try (JedisPooled jedis = new JedisPooled(host, port)) {
-                        while (snapshots.hasNext()) {
-                            FeatureSnapshot snapshot = snapshots.next();
-                            jedis.set(snapshot.redisKey(), FeatureJson.toJson(snapshot));
-                        }
-                    }
-                });
-            }).start();
+            .foreachBatch((batch, id) -> { persistSnapshotBatch(batch, p); }).start();
+    }
+
+    static void persistSnapshotBatch(Dataset<FeatureSnapshot> batch, Properties p) {
+        String output = p.getProperty("hdfs.output") + "/features";
+        String host = p.getProperty("redis.host"); int port = Integer.parseInt(p.getProperty("redis.port"));
+        batch.toJSON().write().mode("append").text(output);
+        batch.foreachPartition(snapshots -> {
+            try (JedisPooled jedis = new JedisPooled(host, port)) {
+                while (snapshots.hasNext()) {
+                    FeatureSnapshot snapshot = snapshots.next();
+                    jedis.set(snapshot.redisKey(), FeatureJson.toJson(snapshot));
+                }
+            }
+        });
     }
 
     private static void writeRaw(JedisPooled jedis, String type, String json, long newMaxItems) {

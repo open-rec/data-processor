@@ -98,6 +98,16 @@ Flink checkpoints every 60 seconds and allows 30 seconds of event-time disorder 
 uses the HDFS checkpoint path configured in `dp.properties`. Preserve or deliberately migrate these
 locations during an engine upgrade; checkpoint files are recovery state, not training input.
 
+Spark feature state now uses `features-json-v1-catalog-<version>` beneath that root.
+The old `features` Kryo checkpoint is retained, since changing feature classes can make its
+binary state unreadable only when an old entity next receives an event. On first start without
+a committed checkpoint in the new namespace, the job reconstructs state from all durable
+`hdfs.output/hive/event` mutation history, refreshes inactive Redis feature snapshots, then
+replays retained Kafka events with the same identity/tombstone deduplication. Raw user/item/event
+checkpoints are unchanged. Recovery requires complete history; a legacy checkpoint with no
+history fails explicitly. Keep history and old checkpoints for rollback. Bump the JSON state
+namespace when making incompatible accumulator changes, even if the catalog version is unchanged.
+
 This repository currently builds Java 8 bytecode against Flink 1.14.6, Spark 3.5.3/Scala 2.12,
 HBase 2.5.10, and the Kafka endpoints supplied by `bigdata-platform`. Compile-time success on a newer
 JDK does not establish cluster-runtime compatibility; upgrade the corresponding platform image and
@@ -116,3 +126,19 @@ contract and every fixture copy in the same change so online and offline definit
 DELETE tombstones are verified by the distribution-level cluster acceptance flow in
 [`example`](https://github.com/open-rec/example); do not treat one engine's unit suite as complete
 contract validation.
+
+
+### Refreshable serving windows
+
+Feature snapshots include `recentEventStats`, aggregated per event second for the
+last 30 days. Each bucket contains `count`, `value_sum`, `count:<action>` and, for
+priced events, `price_count:<action>` / `price_sum:<action>`. These are derived
+from deduplicated, mutation-resolved state. Rank-engine uses them to refresh
+short-window counts/sums, windowed conversion rates and commerce price means
+without waiting for a new event. `recentEventTimeCounts` remains for old consumers.
+
+This is an additive Redis snapshot contract; the Kafka mutation envelope and
+logical feature catalog are unchanged. Rebuild the streaming jobs and rank image
+together. Existing Redis snapshots lack the extra statistics until the producer
+emits them again; replay/backfill is necessary for inactive entities too. A rank
+restart alone does not reconstruct missing action or price history.

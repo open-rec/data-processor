@@ -16,6 +16,12 @@ public class FeatureSnapshot implements Serializable {
     /** Event-time histogram retained for request-time window decay in rank-engine. */
     private Map<Long, Long> recentEventTimeCounts = new LinkedHashMap<>();
 
+    /** Aggregated time buckets for refresh-time window counts, sums and price means. */
+    private Map<Long, Map<String, Double>> recentEventStats = new LinkedHashMap<>();
+
+    public Map<Long, Map<String, Double>> getRecentEventStats() { return recentEventStats; }
+    public void setRecentEventStats(Map<Long, Map<String, Double>> value) { recentEventStats = value; }
+
     public String redisKey() { return "feature:" + entityType + ":{" + entityId + "}"; }
     public String getEntityType() { return entityType; }
     public void setEntityType(String value) { this.entityType = value; }

@@ -118,7 +118,7 @@ public class EventFeatureAccumulator implements Serializable {
             (double)counterparts.size());
         values.put("event_first_time", count == 0 ? 0d : (double)firstTime);
         values.put("event_last_time", (double)lastTime);
-        values.put("event_recency_seconds", (double)Math.max(0L, asOfTime - lastTime));
+        values.put("event_recency_seconds", count == 0 ? 0d : (double)Math.max(0L, asOfTime - lastTime));
         for (FeatureCatalogContract.WindowFeature feature : CATALOG.getWindowFeatures()) {
             double aggregate = 0d;
             long from = asOfTime - feature.getSeconds();
@@ -158,7 +158,27 @@ public class EventFeatureAccumulator implements Serializable {
         }
         result.setFeatures(values);
         result.setRecentEventTimeCounts(new LinkedHashMap<>(timeCounts));
+        Map<Long, Map<String, Double>> recentStats = new TreeMap<>();
+        long from = asOfTime - 30L * DAY;
+        for (FeatureUpdate update : events.values()) {
+            if (update.getEventTime() < from || update.getEventTime() > asOfTime) { continue; }
+            Map<String, Double> bucket = recentStats.computeIfAbsent(
+                update.getEventTime(), ignored -> new LinkedHashMap<>());
+            String type = update.getEventType() == null ? "" : update.getEventType();
+            increment(bucket, "count", 1d);
+            increment(bucket, "value_sum", update.getValue());
+            increment(bucket, "count:" + type, 1d);
+            if (update.isHasPrice()) {
+                increment(bucket, "price_count:" + type, 1d);
+                increment(bucket, "price_sum:" + type, update.getPrice());
+            }
+        }
+        result.setRecentEventStats(recentStats);
         return result;
+    }
+
+    private static void increment(Map<String, Double> bucket, String key, double value) {
+        bucket.put(key, bucket.getOrDefault(key, 0d) + value);
     }
 
     private void commerce(Map<String, Double> values, FeatureSnapshot result, long asOfTime) {

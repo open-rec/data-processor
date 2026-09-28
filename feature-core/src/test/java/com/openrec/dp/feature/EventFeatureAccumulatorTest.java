@@ -18,6 +18,23 @@ import com.google.gson.JsonParser;
 
 public class EventFeatureAccumulatorTest {
     @Test
+    public void exportsMutationResolvedWindowStatistics() {
+        EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
+        Event expose = event("u", "i", "s", "expose", "5", "100");
+        expose.setEventId("expose");
+        accumulator.add(FeatureUpdates.fromEvent(expose, false, 1L).get(0));
+        FeatureSnapshot snapshot = accumulator.currentSnapshot(200L);
+        assertEquals(1d, snapshot.getRecentEventStats().get(100L).get("count:expose"), 0d);
+        assertEquals(5d, snapshot.getRecentEventStats().get(100L).get("value_sum"), 0d);
+        accumulator.add(FeatureUpdates.fromEvent(expose, true, 2L).get(0));
+        snapshot = accumulator.currentSnapshot(300L);
+        assertEquals(0, snapshot.getRecentEventStats().size());
+        assertEquals(0d, snapshot.getFeatures().get("event_recency_seconds"), 0d);
+        accumulator.add(FeatureUpdates.fromEvent(expose, false, 3L).get(0));
+        assertEquals(0, accumulator.currentSnapshot(2592101L).getRecentEventStats().size());
+    }
+
+    @Test
     public void emitsAnIndependentSessionSnapshotWhenSessionIdIsPresent() {
         Event event = event("u", "i", "s", "click", "2", "100");
         event.setSessionId("session-1");
