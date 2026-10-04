@@ -6,6 +6,8 @@
     <artifactId>rec-flink</artifactId>
     <properties><flink.version>1.14.6</flink.version></properties>
     <dependencies>
+        <!-- rec-proto no longer exports its annotation processor transitively. -->
+        <dependency><groupId>org.projectlombok</groupId><artifactId>lombok</artifactId><version>1.18.40</version><scope>provided</scope></dependency>
         <dependency><groupId>com.openrec</groupId><artifactId>feature-core</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>org.apache.flink</groupId><artifactId>flink-streaming-java_2.12</artifactId><version>${flink.version}</version><scope>provided</scope></dependency>
         <dependency><groupId>org.apache.flink</groupId><artifactId>flink-clients_2.12</artifactId><version>${flink.version}</version><scope>provided</scope></dependency>
