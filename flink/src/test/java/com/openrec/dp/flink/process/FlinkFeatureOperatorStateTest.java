@@ -33,7 +33,20 @@ public class FlinkFeatureOperatorStateTest {
             }
         }
         assertEquals(0d, latest.getFeatures().get("event_count"), 0d);
+        org.apache.flink.runtime.checkpoint.OperatorSubtaskState saved = harness.snapshot(1L, 200L);
         harness.close();
+        KeyedOneInputStreamOperatorTestHarness<String, FeatureUpdate, FeatureSnapshot> restored =
+            new KeyedOneInputStreamOperatorTestHarness<>(new KeyedProcessOperator<>(
+                new EventFeatureProcessFunction()), FeatureUpdate::key,
+                org.apache.flink.api.common.typeinfo.Types.STRING);
+        restored.initializeState(saved);
+        restored.open();
+        // An older INSERT must not resurrect the event after a snapshot/restore cycle.
+        restored.processElement(FeatureUpdates.fromEvent(event, false, 100).get(0), 300);
+        FeatureSnapshot replayed = (FeatureSnapshot) ((org.apache.flink.streaming.runtime.streamrecord.StreamRecord<?>)
+            restored.getOutput().peek()).getValue();
+        assertEquals(0d, replayed.getFeatures().get("event_count"), 0d);
+        restored.close();
     }
 
     private Event event() {

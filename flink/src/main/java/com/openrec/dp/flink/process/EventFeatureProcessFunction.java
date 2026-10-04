@@ -2,7 +2,7 @@ package com.openrec.dp.flink.process;
 
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.util.Collector;
 
@@ -12,7 +12,7 @@ import com.openrec.dp.feature.FeatureUpdate;
 
 public class EventFeatureProcessFunction extends KeyedProcessFunction<String, FeatureUpdate, FeatureSnapshot> {
     private transient ValueState<EventFeatureAccumulator> state;
-    @Override public void open(Configuration parameters) {
+    @Override public void open(OpenContext parameters) {
         state = getRuntimeContext().getState(new ValueStateDescriptor<>(
             "event-feature-accumulator", EventFeatureAccumulator.class));
     }

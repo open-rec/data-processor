@@ -10,7 +10,7 @@ import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
@@ -31,6 +31,11 @@ public class DpJob {
     public static void main(String[] args) throws Exception {
         Properties p = FileUtil.loadProperties("dp.properties");
         if (p == null) { throw new IllegalStateException("dp.properties not found"); }
+        if (args.length > 0) {
+            try (java.io.InputStream in = java.nio.file.Files.newInputStream(java.nio.file.Paths.get(args[0]))) {
+                p.load(in);
+            }
+        }
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(Integer.parseInt(p.getProperty("job.parallelism", "2")));
         env.enableCheckpointing(Long.parseLong(p.getProperty("checkpoint.interval.ms", "60000")),

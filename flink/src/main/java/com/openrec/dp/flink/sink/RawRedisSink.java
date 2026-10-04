@@ -4,8 +4,8 @@ import java.util.Properties;
 import java.util.Arrays;
 import java.util.Collections;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
 
 import com.openrec.dp.feature.FeatureJson;
 import com.openrec.dp.feature.DislikeRules;
@@ -29,7 +29,7 @@ public class RawRedisSink extends RichSinkFunction<String> {
         port = Integer.parseInt(p.getProperty("redis.port"));
         newMaxItems = Long.parseLong(p.getProperty("redis.new.max-items", "10000"));
     }
-    @Override public void open(Configuration parameters) { jedis = new JedisPooled(host, port); }
+    @Override public void open(OpenContext parameters) { jedis = new JedisPooled(host, port); }
     @Override public void invoke(String json, Context context) {
         EntityMessage message = EntityMessage.parse(type, json);
         if (message == null) { return; }

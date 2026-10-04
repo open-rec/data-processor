@@ -2,8 +2,8 @@ package com.openrec.dp.flink.sink;
 
 import java.util.Properties;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
 
 import com.openrec.dp.feature.FeatureJson;
 import com.openrec.dp.feature.FeatureSnapshot;
@@ -17,7 +17,7 @@ public class SnapshotRedisSink extends RichSinkFunction<FeatureSnapshot> {
     public SnapshotRedisSink(Properties p) {
         host = p.getProperty("redis.host"); port = Integer.parseInt(p.getProperty("redis.port"));
     }
-    @Override public void open(Configuration parameters) { jedis = new JedisPooled(host, port); }
+    @Override public void open(OpenContext parameters) { jedis = new JedisPooled(host, port); }
     @Override public void invoke(FeatureSnapshot value, Context context) {
         jedis.set(value.redisKey(), FeatureJson.toJson(value));
     }

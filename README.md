@@ -1,9 +1,9 @@
 # OpenRec Real-Time Data Processor
 
 [![CI](https://github.com/open-rec/data-processor/actions/workflows/ci.yml/badge.svg)](https://github.com/open-rec/data-processor/actions/workflows/ci.yml)
-![Java](https://img.shields.io/badge/Java-8-ED8B00?logo=openjdk&logoColor=white)
-![Flink](https://img.shields.io/badge/Flink-1.14.6-E6526F?logo=apacheflink&logoColor=white)
-![Spark](https://img.shields.io/badge/Spark-3.5.3-E25A1C?logo=apachespark&logoColor=white)
+![Java](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white)
+![Flink](https://img.shields.io/badge/Flink-2.2.1-E6526F?logo=apacheflink&logoColor=white)
+![Spark](https://img.shields.io/badge/Spark-4.0.4-E25A1C?logo=apachespark&logoColor=white)
 
 `data-processor` provides equivalent Flink and Spark Structured Streaming jobs. Both consume the `user`, `item`, and `event` Kafka topics, update Redis serving data, persist the original entities in HBase, and append immutable JSON records to Hive-backed HDFS locations for offline training.
 
@@ -64,7 +64,7 @@ contract.
 
 ## Build and Run
 
-Use JDK 8:
+Use JDK 21:
 
 ```bash
 mvn clean test
@@ -83,7 +83,7 @@ spark-submit --class com.openrec.dp.spark.SparkFeatureJob \
   --master spark://spark-master:7077 spark/target/rec-spark-1.0-SNAPSHOT.jar
 ```
 
-Configure Kafka, Redis, HBase, Hive/HDFS, checkpoint paths, parallelism, and event lateness in each module's `src/main/resources/dp.properties`. Set `hbase.enabled=false` or `hive.enabled=false` only when intentionally running without that cluster component. Use distinct Kafka consumer groups and checkpoint directories when comparing engines. Running both against the same topics duplicates persisted entities, although stable HBase row keys make user/item updates idempotent.
+Configure Kafka, Redis, HBase, Hive/HDFS, checkpoint paths, parallelism, and event lateness in each module's `src/main/resources/dp.properties`, or pass an external properties file as the first application argument to override defaults. Set `hbase.enabled=false` or `hive.enabled=false` only when intentionally running without that cluster component. Use distinct Kafka consumer groups and checkpoint directories when comparing engines. Running both against the same topics duplicates persisted entities, although stable HBase row keys make user/item updates idempotent.
 
 ## Delivery and compatibility
 
@@ -108,10 +108,16 @@ checkpoints are unchanged. Recovery requires complete history; a legacy checkpoi
 history fails explicitly. Keep history and old checkpoints for rollback. Bump the JSON state
 namespace when making incompatible accumulator changes, even if the catalog version is unchanged.
 
-This repository currently builds Java 8 bytecode against Flink 1.14.6, Spark 3.5.3/Scala 2.12,
+This repository currently builds Java 21 bytecode against Flink 2.2.1, Spark 4.0.4/Scala 2.13,
 HBase 2.5.10, and the Kafka endpoints supplied by `bigdata-platform`. Compile-time success on a newer
 JDK does not establish cluster-runtime compatibility; upgrade the corresponding platform image and
 run the cluster deletion, persistence, and recall acceptance flows together.
+
+For existing installations, stop jobs and back up checkpoints before replacing engines. Do not mix
+Spark 3/Scala 2.12 drivers with Spark 4/Scala 2.13 workers. A synthetic Spark 3.5.3 to 4.0.4 JSON-state
+restore was verified, but actual installation state still needs a copy-based rehearsal. Flink 1.x to
+2.x savepoint compatibility is not guaranteed; preserve old savepoints and complete mutation history.
+See the distribution [Java 21 rollout guide](https://github.com/open-rec/openrec/blob/master/docs/java21-processors-web-migration.md).
 
 ## Testing
 

@@ -3,8 +3,8 @@ package com.openrec.dp.flink.sink;
 import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
@@ -37,7 +37,7 @@ public class HBaseEntitySink extends RichSinkFunction<String> {
         tablePrefix = p.getProperty("hbase.table.prefix", "openrec_");
     }
 
-    @Override public void open(Configuration parameters) throws Exception {
+    @Override public void open(OpenContext parameters) throws Exception {
         org.apache.hadoop.conf.Configuration config = HBaseConfiguration.create();
         config.set("hbase.zookeeper.quorum", quorum);
         config.set("zookeeper.znode.parent", znode);

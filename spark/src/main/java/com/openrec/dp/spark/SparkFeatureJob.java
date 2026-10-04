@@ -37,6 +37,11 @@ import com.openrec.proto.model.Event;
 public class SparkFeatureJob {
     public static void main(String[] args) throws Exception {
         Properties p = properties();
+        if (args.length > 0) {
+            try (InputStream in = java.nio.file.Files.newInputStream(java.nio.file.Paths.get(args[0]))) {
+                p.load(in);
+            }
+        }
         SparkSession spark = SparkSession.builder().appName("openrec-spark-realtime-features")
             .master(p.getProperty("spark.master")).getOrCreate();
         // Object-layout-dependent Kryo checkpoints cannot survive feature schema upgrades.
