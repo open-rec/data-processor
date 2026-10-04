@@ -33,15 +33,20 @@ jobs:
             echo "Maven target files must not be tracked"
             exit 1
           fi
-      - name: Set up Java 8
+      - name: Set up Java 21 for protocol build
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '8'
+          java-version: '21'
           cache: maven
       - name: Install protocol artifact
         working-directory: rec-server
         run: mvn --batch-mode --no-transfer-progress -pl proto -am install -DskipTests
+      - name: Set up Java 8 for data processor
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '8'
       - name: Run tests
         working-directory: data-processor
         run: mvn --batch-mode --no-transfer-progress clean test
