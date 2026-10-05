@@ -1,5 +1,7 @@
 # OpenRec Real-Time Data Processor
 
+[Release v0.1.0](RELEASE_NOTES.md) · [Changelog](CHANGELOG.md)
+
 [![CI](https://github.com/open-rec/data-processor/actions/workflows/ci.yml/badge.svg)](https://github.com/open-rec/data-processor/actions/workflows/ci.yml)
 ![Java](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white)
 ![Flink](https://img.shields.io/badge/Flink-2.2.1-E6526F?logo=apacheflink&logoColor=white)
@@ -75,12 +77,12 @@ mvn -pl spark -am -DskipTests package
 Submit one implementation for production, using the properties bundled in its jar:
 
 ```bash
-docker cp flink/target/rec-flink-1.0-SNAPSHOT.jar \
+docker cp flink/target/rec-flink-0.1.0.jar \
   flink-jobmanager:/opt/flink/jobs/openrec-features.jar
 docker exec flink-jobmanager flink run -d -c com.openrec.dp.flink.DpJob \
   /opt/flink/jobs/openrec-features.jar
 spark-submit --class com.openrec.dp.spark.SparkFeatureJob \
-  --master spark://spark-master:7077 spark/target/rec-spark-1.0-SNAPSHOT.jar
+  --master spark://spark-master:7077 spark/target/rec-spark-0.1.0.jar
 ```
 
 Configure Kafka, Redis, HBase, Hive/HDFS, checkpoint paths, parallelism, and event lateness in each module's `src/main/resources/dp.properties`, or pass an external properties file as the first application argument to override defaults. Set `hbase.enabled=false` or `hive.enabled=false` only when intentionally running without that cluster component. Use distinct Kafka consumer groups and checkpoint directories when comparing engines. Running both against the same topics duplicates persisted entities, although stable HBase row keys make user/item updates idempotent.
