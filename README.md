@@ -130,7 +130,7 @@ contract and every fixture copy in the same change so online and offline definit
 
 `mvn clean test` is the local unit boundary. Redis, Kafka, HBase, Hive, checkpoint recovery, and
 DELETE tombstones are verified by the distribution-level cluster acceptance flow in
-[`example`](https://github.com/open-rec/example); do not treat one engine's unit suite as complete
+[`example`](https://github.com/open-rec/openrec); do not treat one engine's unit suite as complete
 contract validation.
 
 
