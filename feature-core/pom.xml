@@ -5,12 +5,12 @@
     <parent>
         <groupId>com.openrec</groupId>
         <artifactId>data-processor</artifactId>
-        <version>1.0-SNAPSHOT</version>
+        <version>0.1.0</version>
     </parent>
     <artifactId>feature-core</artifactId>
     <dependencies>
         <dependency>
-            <groupId>com.openrec</groupId><artifactId>rec-proto</artifactId><version>1.0-SNAPSHOT</version>
+            <groupId>com.openrec</groupId><artifactId>rec-proto</artifactId><version>0.1.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.code.gson</groupId><artifactId>gson</artifactId><version>2.13.2</version>
