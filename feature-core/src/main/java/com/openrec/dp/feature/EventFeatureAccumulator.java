@@ -49,18 +49,29 @@ public class EventFeatureAccumulator implements Serializable {
         FeatureUpdate previous = events.get(identity);
         if (update.isDeleted()) {
             events.remove(identity);
-            if (previous != null) { rebuild(); }
+            if (previous != null) {
+                rebuild();
+            }
         } else {
             events.put(identity, update);
-            if (previous == null) { addContribution(update); }
-            else { rebuild(); }
+            if (previous == null) {
+                addContribution(update);
+            } else {
+                rebuild();
+            }
         }
         return snapshot(lastTime);
     }
 
     private void rebuild() {
-        count = 0L; valueSum = 0d; firstTime = Long.MAX_VALUE; lastTime = 0L;
-        activeDays.clear(); scenes.clear(); counterparts.clear(); typeCounts.clear();
+        count = 0L;
+        valueSum = 0d;
+        firstTime = Long.MAX_VALUE;
+        lastTime = 0L;
+        activeDays.clear();
+        scenes.clear();
+        counterparts.clear();
+        typeCounts.clear();
         timeCounts.clear();
         for (FeatureUpdate update : events.values()) {
             addContribution(update);
@@ -76,13 +87,14 @@ public class EventFeatureAccumulator implements Serializable {
         if (update.getScene() != null && !update.getScene().trim().isEmpty()) {
             scenes.add(update.getScene());
         }
-        if (update.getCounterpartId() != null) { counterparts.add(update.getCounterpartId()); }
+        if (update.getCounterpartId() != null) {
+            counterparts.add(update.getCounterpartId());
+        }
         String type = update.getEventType() == null ? "" : update.getEventType();
         if (CATALOG.getEventTypes().contains(type)) {
             typeCounts.put(type, typeCounts.getOrDefault(type, 0L) + 1);
         }
-        timeCounts.put(update.getEventTime(), timeCounts.getOrDefault(
-            update.getEventTime(), 0L) + 1);
+        timeCounts.put(update.getEventTime(), timeCounts.getOrDefault(update.getEventTime(), 0L) + 1);
         if (count > 0) {
             long largestWindow = Collections.max(CATALOG.getWindows());
             timeCounts.headMap(lastTime - largestWindow, false).clear();
@@ -113,9 +125,8 @@ public class EventFeatureAccumulator implements Serializable {
         values.put("event_value_mean", count == 0 ? 0d : valueSum / count);
         values.put("event_active_days", (double)activeDays.size());
         values.put("event_unique_scene_count", (double)scenes.size());
-        values.put("event_unique_" + (("user".equals(entityType) || "session".equals(entityType))
-            ? "item" : "user") + "_count",
-            (double)counterparts.size());
+        values.put("event_unique_" + (("user".equals(entityType) || "session".equals(entityType)) ? "item" : "user")
+            + "_count", (double)counterparts.size());
         values.put("event_first_time", count == 0 ? 0d : (double)firstTime);
         values.put("event_last_time", (double)lastTime);
         values.put("event_recency_seconds", count == 0 ? 0d : (double)Math.max(0L, asOfTime - lastTime));
@@ -123,9 +134,12 @@ public class EventFeatureAccumulator implements Serializable {
             double aggregate = 0d;
             long from = asOfTime - feature.getSeconds();
             for (FeatureUpdate update : events.values()) {
-                if (update.getEventTime() < from || update.getEventTime() > asOfTime) { continue; }
-                if (feature.getEventType() != null
-                    && !feature.getEventType().equals(update.getEventType())) { continue; }
+                if (update.getEventTime() < from || update.getEventTime() > asOfTime) {
+                    continue;
+                }
+                if (feature.getEventType() != null && !feature.getEventType().equals(update.getEventType())) {
+                    continue;
+                }
                 aggregate += "sum".equals(feature.getOperator()) ? update.getValue() : 1d;
             }
             values.put(feature.getName(), aggregate);
@@ -135,17 +149,21 @@ public class EventFeatureAccumulator implements Serializable {
         }
         double clicks = values.get("event_click_count");
         double exposes = values.get("event_expose_count");
-        values.put("event_click_rate", clicks + exposes == 0d
-            ? 0d : clicks / (clicks + exposes));
+        values.put("event_click_rate", clicks + exposes == 0d ? 0d : clicks / (clicks + exposes));
         for (FeatureCatalogContract.RateFeature feature : CATALOG.getRateFeatures()) {
             double numerator = 0d;
             double denominator = 0d;
-            long from = feature.getSeconds() == 0L
-                ? Long.MIN_VALUE : asOfTime - feature.getSeconds();
+            long from = feature.getSeconds() == 0L ? Long.MIN_VALUE : asOfTime - feature.getSeconds();
             for (FeatureUpdate update : events.values()) {
-                if (update.getEventTime() < from || update.getEventTime() > asOfTime) { continue; }
-                if (feature.getNumeratorType().equals(update.getEventType())) { numerator++; }
-                if (feature.getDenominatorType().equals(update.getEventType())) { denominator++; }
+                if (update.getEventTime() < from || update.getEventTime() > asOfTime) {
+                    continue;
+                }
+                if (feature.getNumeratorType().equals(update.getEventType())) {
+                    numerator++;
+                }
+                if (feature.getDenominatorType().equals(update.getEventType())) {
+                    denominator++;
+                }
             }
             values.put(feature.getName(), denominator == 0d ? 0d : numerator / denominator);
         }
@@ -161,9 +179,11 @@ public class EventFeatureAccumulator implements Serializable {
         Map<Long, Map<String, Double>> recentStats = new TreeMap<>();
         long from = asOfTime - 30L * DAY;
         for (FeatureUpdate update : events.values()) {
-            if (update.getEventTime() < from || update.getEventTime() > asOfTime) { continue; }
-            Map<String, Double> bucket = recentStats.computeIfAbsent(
-                update.getEventTime(), ignored -> new LinkedHashMap<>());
+            if (update.getEventTime() < from || update.getEventTime() > asOfTime) {
+                continue;
+            }
+            Map<String, Double> bucket =
+                recentStats.computeIfAbsent(update.getEventTime(), ignored -> new LinkedHashMap<>());
             String type = update.getEventType() == null ? "" : update.getEventType();
             increment(bucket, "count", 1d);
             increment(bucket, "value_sum", update.getValue());
@@ -182,7 +202,9 @@ public class EventFeatureAccumulator implements Serializable {
     }
 
     private void commerce(Map<String, Double> values, FeatureSnapshot result, long asOfTime) {
-        if (!"user".equals(entityType)) { return; }
+        if (!"user".equals(entityType)) {
+            return;
+        }
         Map<String, Double> categories = new HashMap<>();
         Map<String, Double> subcategories = new HashMap<>();
         List<FeatureUpdate> priced = new ArrayList<>();
@@ -190,7 +212,9 @@ public class EventFeatureAccumulator implements Serializable {
             double weight = behaviorWeight(update);
             addWeight(categories, update.getCategory(), weight);
             addWeight(subcategories, update.getSubcategory(), weight);
-            if (update.isHasPrice()) { priced.add(update); }
+            if (update.isHasPrice()) {
+                priced.add(update);
+            }
         }
         Map<String, String> strings = new LinkedHashMap<>();
         strings.put("preferred_categories", top(categories));
@@ -206,69 +230,83 @@ public class EventFeatureAccumulator implements Serializable {
                     select(priced, type, asOfTime - window[0], asOfTime));
             }
         }
-        values.put("event_buy_to_click_price_ratio", ratio(
-            values.get("event_buy_price_mean"), values.get("event_click_price_mean")));
-        values.put("event_recent_to_long_click_price_ratio", ratio(
-            values.get("event_click_price_mean_1d"), values.get("event_click_price_mean_30d")));
+        values.put("event_buy_to_click_price_ratio",
+            ratio(values.get("event_buy_price_mean"), values.get("event_click_price_mean")));
+        values.put("event_recent_to_long_click_price_ratio",
+            ratio(values.get("event_click_price_mean_1d"), values.get("event_click_price_mean_30d")));
     }
 
     private static double behaviorWeight(FeatureUpdate update) {
         String type = update.getEventType() == null ? "" : update.getEventType();
-        if ("expose".equals(type)) { return 0.1d; }
-        if ("click".equals(type)) { return 1d; }
-        if ("collect".equals(type)) { return 3d; }
-        if ("buy".equals(type)) { return 5d; }
-        if ("stay".equals(type)) { return Math.log1p(Math.max(0d, update.getValue())); }
+        if ("expose".equals(type)) {
+            return 0.1d;
+        }
+        if ("click".equals(type)) {
+            return 1d;
+        }
+        if ("collect".equals(type)) {
+            return 3d;
+        }
+        if ("buy".equals(type)) {
+            return 5d;
+        }
+        if ("stay".equals(type)) {
+            return Math.log1p(Math.max(0d, update.getValue()));
+        }
         return 0d;
     }
 
     private static void addWeight(Map<String, Double> target, String name, double weight) {
-        if (name == null || name.trim().isEmpty() || weight <= 0d) { return; }
+        if (name == null || name.trim().isEmpty() || weight <= 0d) {
+            return;
+        }
         target.put(name, target.getOrDefault(name, 0d) + weight);
     }
 
     private static String top(Map<String, Double> values) {
         List<Map.Entry<String, Double>> entries = new ArrayList<>(values.entrySet());
-        entries.sort(Comparator.<Map.Entry<String, Double>, Double>comparing(Map.Entry::getValue)
-            .reversed().thenComparing(Map.Entry::getKey));
+        entries.sort(Comparator.<Map.Entry<String, Double>, Double>comparing(Map.Entry::getValue).reversed()
+            .thenComparing(Map.Entry::getKey));
         StringBuilder result = new StringBuilder();
         for (int i = 0; i < Math.min(8, entries.size()); i++) {
-            if (i > 0) { result.append(','); }
+            if (i > 0) {
+                result.append(',');
+            }
             result.append(entries.get(i).getKey());
         }
         return result.toString();
     }
 
-    private static List<FeatureUpdate> select(List<FeatureUpdate> source, String type,
-        long from, long to) {
+    private static List<FeatureUpdate> select(List<FeatureUpdate> source, String type, long from, long to) {
         List<FeatureUpdate> result = new ArrayList<>();
         for (FeatureUpdate update : source) {
-            if (type.equals(update.getEventType()) && update.getEventTime() >= from
-                && update.getEventTime() <= to) { result.add(update); }
+            if (type.equals(update.getEventType()) && update.getEventTime() >= from && update.getEventTime() <= to) {
+                result.add(update);
+            }
         }
         return result;
     }
 
-    private static void putPrice(Map<String, Double> values, String prefix,
-        List<FeatureUpdate> source) {
+    private static void putPrice(Map<String, Double> values, String prefix, List<FeatureUpdate> source) {
         putMean(values, prefix + "_mean", source);
         double mean = values.get(prefix + "_mean");
         double square = 0d;
         for (FeatureUpdate update : source) {
-            double delta = update.getPrice() - mean; square += delta * delta;
+            double delta = update.getPrice() - mean;
+            square += delta * delta;
         }
         values.put(prefix + "_std", source.isEmpty() ? 0d : Math.sqrt(square / source.size()));
     }
 
-    private static void putMean(Map<String, Double> values, String name,
-        List<FeatureUpdate> source) {
+    private static void putMean(Map<String, Double> values, String name, List<FeatureUpdate> source) {
         double sum = 0d;
-        for (FeatureUpdate update : source) { sum += update.getPrice(); }
+        for (FeatureUpdate update : source) {
+            sum += update.getPrice();
+        }
         values.put(name, source.isEmpty() ? 0d : sum / source.size());
     }
 
     private static double ratio(Double numerator, Double denominator) {
-        return numerator == null || denominator == null || denominator <= 0d
-            ? 0d : numerator / denominator;
+        return numerator == null || denominator == null || denominator <= 0d ? 0d : numerator / denominator;
     }
 }

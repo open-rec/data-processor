@@ -12,10 +12,10 @@ import com.openrec.dp.feature.FeatureUpdates;
 import com.openrec.proto.model.Event;
 
 public class FlinkFeatureOperatorStateTest {
-    @Test public void keyedStateHandlesOutOfOrderMutationAndDeleteTie() throws Exception {
+    @Test
+    public void keyedStateHandlesOutOfOrderMutationAndDeleteTie() throws Exception {
         EventFeatureProcessFunction function = new EventFeatureProcessFunction();
-        KeyedProcessOperator<String, FeatureUpdate, FeatureSnapshot> operator =
-            new KeyedProcessOperator<>(function);
+        KeyedProcessOperator<String, FeatureUpdate, FeatureSnapshot> operator = new KeyedProcessOperator<>(function);
         KeyedOneInputStreamOperatorTestHarness<String, FeatureUpdate, FeatureSnapshot> harness =
             new KeyedOneInputStreamOperatorTestHarness<>(operator, FeatureUpdate::key,
                 org.apache.flink.api.common.typeinfo.Types.STRING);
@@ -28,7 +28,7 @@ public class FlinkFeatureOperatorStateTest {
         FeatureSnapshot latest = null;
         for (Object value : harness.getOutput()) {
             if (value instanceof org.apache.flink.streaming.runtime.streamrecord.StreamRecord) {
-                latest = (FeatureSnapshot) ((org.apache.flink.streaming.runtime.streamrecord.StreamRecord<?>) value)
+                latest = (FeatureSnapshot)((org.apache.flink.streaming.runtime.streamrecord.StreamRecord<?>)value)
                     .getValue();
             }
         }
@@ -36,23 +36,27 @@ public class FlinkFeatureOperatorStateTest {
         org.apache.flink.runtime.checkpoint.OperatorSubtaskState saved = harness.snapshot(1L, 200L);
         harness.close();
         KeyedOneInputStreamOperatorTestHarness<String, FeatureUpdate, FeatureSnapshot> restored =
-            new KeyedOneInputStreamOperatorTestHarness<>(new KeyedProcessOperator<>(
-                new EventFeatureProcessFunction()), FeatureUpdate::key,
-                org.apache.flink.api.common.typeinfo.Types.STRING);
+            new KeyedOneInputStreamOperatorTestHarness<>(new KeyedProcessOperator<>(new EventFeatureProcessFunction()),
+                FeatureUpdate::key, org.apache.flink.api.common.typeinfo.Types.STRING);
         restored.initializeState(saved);
         restored.open();
         // An older INSERT must not resurrect the event after a snapshot/restore cycle.
         restored.processElement(FeatureUpdates.fromEvent(event, false, 100).get(0), 300);
-        FeatureSnapshot replayed = (FeatureSnapshot) ((org.apache.flink.streaming.runtime.streamrecord.StreamRecord<?>)
-            restored.getOutput().peek()).getValue();
+        FeatureSnapshot replayed = (FeatureSnapshot)((org.apache.flink.streaming.runtime.streamrecord.StreamRecord<
+            ?>)restored.getOutput().peek()).getValue();
         assertEquals(0d, replayed.getFeatures().get("event_count"), 0d);
         restored.close();
     }
 
     private Event event() {
         Event event = new Event();
-        event.setEventId("event-1"); event.setUserId("u"); event.setItemId("i");
-        event.setScene("s"); event.setType("click"); event.setValue("1"); event.setTime("50");
+        event.setEventId("event-1");
+        event.setUserId("u");
+        event.setItemId("i");
+        event.setScene("s");
+        event.setType("click");
+        event.setValue("1");
+        event.setTime("50");
         return event;
     }
 }

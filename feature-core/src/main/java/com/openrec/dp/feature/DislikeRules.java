@@ -15,12 +15,16 @@ public final class DislikeRules {
         add(rules, "id:", dislike == null ? null : dislike.getId());
         add(rules, "category:", dislike == null ? null : dislike.getCategory());
         if (dislike != null && dislike.getTags() != null) {
-            for (String tag : dislike.getTags()) { add(rules, "tag:", tag); }
+            for (String tag : dislike.getTags()) {
+                add(rules, "tag:", tag);
+            }
         }
         return rules;
     }
 
     private static void add(Set<String> rules, String prefix, String value) {
-        if (value != null && !value.trim().isEmpty()) { rules.add(prefix + value.trim()); }
+        if (value != null && !value.trim().isEmpty()) {
+            rules.add(prefix + value.trim());
+        }
     }
 }

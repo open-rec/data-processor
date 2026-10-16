@@ -34,7 +34,8 @@ final class HBaseEntityWriter implements Closeable {
                 try {
                     admin.createTable(TableDescriptorBuilder.newBuilder(name)
                         .setColumnFamily(ColumnFamilyDescriptorBuilder.of(FAMILY)).build());
-                } catch (org.apache.hadoop.hbase.TableExistsException ignored) { }
+                } catch (org.apache.hadoop.hbase.TableExistsException ignored) {
+                }
             }
         }
         table = connection.getTable(name);
@@ -42,7 +43,9 @@ final class HBaseEntityWriter implements Closeable {
 
     void write(String type, String json) throws Exception {
         EntityRecord record = EntityRecord.fromJson(type, json);
-        if (record == null) { return; }
+        if (record == null) {
+            return;
+        }
         EntityMessage message = EntityMessage.parse(type, json);
         if (message != null && message.isDelete()) {
             table.delete(new Delete(record.getRowKey().getBytes(StandardCharsets.UTF_8)));
@@ -53,8 +56,15 @@ final class HBaseEntityWriter implements Closeable {
         table.put(put);
     }
 
-    @Override public void close() {
-        try { table.close(); } catch (Exception ignored) { }
-        try { connection.close(); } catch (Exception ignored) { }
+    @Override
+    public void close() {
+        try {
+            table.close();
+        } catch (Exception ignored) {
+        }
+        try {
+            connection.close();
+        } catch (Exception ignored) {
+        }
     }
 }

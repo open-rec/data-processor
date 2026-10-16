@@ -18,34 +18,123 @@ public class FeatureUpdate implements Serializable {
     private double price;
     private boolean hasPrice;
 
-    public String key() { return entityType + ":" + entityId; }
-    public String getEntityType() { return entityType; }
-    public void setEntityType(String value) { this.entityType = value; }
-    public String getEntityId() { return entityId; }
-    public void setEntityId(String value) { this.entityId = value; }
-    public String getCounterpartId() { return counterpartId; }
-    public void setCounterpartId(String value) { this.counterpartId = value; }
-    public String getScene() { return scene; }
-    public void setScene(String value) { this.scene = value; }
-    public String getEventType() { return eventType; }
-    public void setEventType(String value) { this.eventType = value; }
-    public double getValue() { return value; }
-    public void setValue(double value) { this.value = value; }
-    public long getEventTime() { return eventTime; }
-    public void setEventTime(long value) { this.eventTime = value; }
-    public String getEventIdentity() { return eventIdentity; }
-    public void setEventIdentity(String value) { this.eventIdentity = value; }
-    public long getMutationTime() { return mutationTime; }
-    public void setMutationTime(long value) { this.mutationTime = value; }
-    public boolean isDeleted() { return deleted; }
-    public void setDeleted(boolean value) { this.deleted = value; }
-    public String getCategory() { return category; }
-    public void setCategory(String value) { category = value; }
-    public String getSubcategory() { return subcategory; }
-    public void setSubcategory(String value) { subcategory = value; }
-    public double getPrice() { return price; }
-    public void setPrice(double value) { price = value; }
-    public boolean isHasPrice() { return hasPrice; }
-    public boolean getHasPrice() { return hasPrice; }
-    public void setHasPrice(boolean value) { hasPrice = value; }
+    public String key() {
+        return entityType + ":" + entityId;
+    }
+
+    public String getEntityType() {
+        return entityType;
+    }
+
+    public void setEntityType(String value) {
+        this.entityType = value;
+    }
+
+    public String getEntityId() {
+        return entityId;
+    }
+
+    public void setEntityId(String value) {
+        this.entityId = value;
+    }
+
+    public String getCounterpartId() {
+        return counterpartId;
+    }
+
+    public void setCounterpartId(String value) {
+        this.counterpartId = value;
+    }
+
+    public String getScene() {
+        return scene;
+    }
+
+    public void setScene(String value) {
+        this.scene = value;
+    }
+
+    public String getEventType() {
+        return eventType;
+    }
+
+    public void setEventType(String value) {
+        this.eventType = value;
+    }
+
+    public double getValue() {
+        return value;
+    }
+
+    public void setValue(double value) {
+        this.value = value;
+    }
+
+    public long getEventTime() {
+        return eventTime;
+    }
+
+    public void setEventTime(long value) {
+        this.eventTime = value;
+    }
+
+    public String getEventIdentity() {
+        return eventIdentity;
+    }
+
+    public void setEventIdentity(String value) {
+        this.eventIdentity = value;
+    }
+
+    public long getMutationTime() {
+        return mutationTime;
+    }
+
+    public void setMutationTime(long value) {
+        this.mutationTime = value;
+    }
+
+    public boolean isDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(boolean value) {
+        this.deleted = value;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String value) {
+        category = value;
+    }
+
+    public String getSubcategory() {
+        return subcategory;
+    }
+
+    public void setSubcategory(String value) {
+        subcategory = value;
+    }
+
+    public double getPrice() {
+        return price;
+    }
+
+    public void setPrice(double value) {
+        price = value;
+    }
+
+    public boolean isHasPrice() {
+        return hasPrice;
+    }
+
+    public boolean getHasPrice() {
+        return hasPrice;
+    }
+
+    public void setHasPrice(boolean value) {
+        hasPrice = value;
+    }
 }

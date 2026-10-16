@@ -66,6 +66,35 @@ contract.
 
 ## Build and Run
 
+### Java formatting
+
+All Java production and test sources use the vendored [Alibaba Eclipse profile](config/README.md)
+through Spotless. With JDK 21 and Maven on `PATH`, run once per clone:
+
+```bash
+bash scripts/install-git-hooks.sh
+```
+
+Format and validate all three modules from the repository root:
+
+```bash
+bash scripts/java-format.sh       # applies formatting (mvn spotless:apply)
+bash scripts/java-format.sh check # checks formatting (mvn spotless:check)
+```
+
+`OPENREC_JAVA21_HOME` can select JDK 21; `MVN` can select a Maven executable.
+Normal Maven builds also check formatting during `validate` and fail on differences.
+The pre-commit hook checks an isolated copy of the staged tree, and pre-push checks
+each outgoing tip. Hooks never stage files or overwrite partially staged changes.
+If a check fails, run the formatter, review and stage the result, then retry.
+New clones must install hooks; Git does not activate tracked hooks automatically.
+
+CI runs **Java format** on pull requests and pushes to every branch, independently
+of dependency builds and unit tests. Configure GitHub branch protection/rulesets to
+require **Java format** and pull requests, with bypasses disabled, to prevent
+unformatted changes from merging. Local hooks can be bypassed; CI runs after a
+push and cannot by itself prevent objects from reaching the remote repository.
+
 Use JDK 21:
 
 ```bash

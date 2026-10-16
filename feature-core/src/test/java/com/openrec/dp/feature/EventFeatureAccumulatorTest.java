@@ -44,8 +44,7 @@ public class EventFeatureAccumulatorTest {
         assertEquals("session", snapshot.getEntityType());
         assertEquals("session-1", snapshot.getEntityId());
         assertEquals(1d, snapshot.getFeatures().get("event_unique_item_count"), 0d);
-        assertEquals(FeatureCatalogContract.get().getColumns("session"),
-            snapshot.getFeatures().keySet());
+        assertEquals(FeatureCatalogContract.get().getColumns("session"), snapshot.getFeatures().keySet());
     }
 
     @Test
@@ -67,8 +66,7 @@ public class EventFeatureAccumulatorTest {
         assertEquals(1d, snapshot.getFeatures().get("event_ctr"), 0d);
         assertEquals(FeatureCatalogContract.get().getVersion(), snapshot.getCatalogVersion());
         assertEquals(FeatureCatalogContract.get().getSha256(), snapshot.getCatalogSha256());
-        assertEquals(FeatureCatalogContract.get().getColumns("user"),
-            snapshot.getFeatures().keySet());
+        assertEquals(FeatureCatalogContract.get().getColumns("user"), snapshot.getFeatures().keySet());
 
         EventFeatureAccumulator item = new EventFeatureAccumulator();
         FeatureSnapshot itemSnapshot = item.add(clickUpdates.get(1));
@@ -116,11 +114,9 @@ public class EventFeatureAccumulatorTest {
         event.setEventId("event-1");
         EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
         accumulator.add(FeatureUpdates.fromEvent(event, false, 10).get(0));
-        FeatureSnapshot deleted = accumulator.add(
-            FeatureUpdates.fromEvent(event, true, 20).get(0));
+        FeatureSnapshot deleted = accumulator.add(FeatureUpdates.fromEvent(event, true, 20).get(0));
         assertEquals(0d, deleted.getFeatures().get("event_count"), 0d);
-        FeatureSnapshot staleInsert = accumulator.add(
-            FeatureUpdates.fromEvent(event, false, 15).get(0));
+        FeatureSnapshot staleInsert = accumulator.add(FeatureUpdates.fromEvent(event, false, 15).get(0));
         assertEquals(0d, staleInsert.getFeatures().get("event_count"), 0d);
     }
 
@@ -182,12 +178,12 @@ public class EventFeatureAccumulatorTest {
     public void productionSnapshotUsesInjectedWallClockAndPreservesInclusiveWindows() {
         long wallClock = 3000000L;
         EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
-        accumulator.add(FeatureUpdates.fromEvent(event(
-            "u", "i30", "s", "expose", "1", Long.toString(wallClock - 30 * 86400L))).get(0));
-        accumulator.add(FeatureUpdates.fromEvent(event(
-            "u", "i7", "s", "click", "1", Long.toString(wallClock - 7 * 86400L))).get(0));
-        accumulator.add(FeatureUpdates.fromEvent(event(
-            "u", "i1", "s", "buy", "1", Long.toString(wallClock - 86400L))).get(0));
+        accumulator.add(FeatureUpdates
+            .fromEvent(event("u", "i30", "s", "expose", "1", Long.toString(wallClock - 30 * 86400L))).get(0));
+        accumulator.add(FeatureUpdates
+            .fromEvent(event("u", "i7", "s", "click", "1", Long.toString(wallClock - 7 * 86400L))).get(0));
+        accumulator
+            .add(FeatureUpdates.fromEvent(event("u", "i1", "s", "buy", "1", Long.toString(wallClock - 86400L))).get(0));
 
         FeatureSnapshot atBoundary = accumulator.currentSnapshot(wallClock);
         assertEquals(wallClock, atBoundary.getAsOfTime());
@@ -205,8 +201,7 @@ public class EventFeatureAccumulatorTest {
     @Test
     public void productionSnapshotUsesFutureEventAsClockFloor() {
         EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
-        accumulator.add(FeatureUpdates.fromEvent(event(
-            "u", "i", "s", "click", "1", "200")).get(0));
+        accumulator.add(FeatureUpdates.fromEvent(event("u", "i", "s", "click", "1", "200")).get(0));
 
         FeatureSnapshot snapshot = accumulator.currentSnapshot(100);
         assertEquals(200L, snapshot.getAsOfTime());
@@ -216,24 +211,22 @@ public class EventFeatureAccumulatorTest {
 
     @Test
     public void matchesSharedPythonGoldenFixture() {
-        JsonObject fixture = new JsonParser().parse(new InputStreamReader(
-            getClass().getClassLoader().getResourceAsStream("event-feature-parity.json")))
+        JsonObject fixture = new JsonParser()
+            .parse(new InputStreamReader(getClass().getClassLoader().getResourceAsStream("event-feature-parity.json")))
             .getAsJsonObject();
         long asOf = fixture.get("as_of_time").getAsLong();
         EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
         for (JsonElement element : fixture.getAsJsonArray("events")) {
             JsonObject value = element.getAsJsonObject();
             Event event = event(value.get("user_id").getAsString(), value.get("item_id").getAsString(),
-                value.get("scene").getAsString(), value.get("type").getAsString(),
-                value.get("value").getAsString(), value.get("time").getAsString());
+                value.get("scene").getAsString(), value.get("type").getAsString(), value.get("value").getAsString(),
+                value.get("time").getAsString());
             if (value.has("event_id")) {
                 event.setEventId(value.get("event_id").getAsString());
             }
             event.setTraceId(value.get("trace_id").getAsString());
-            boolean deleted = value.has("operation")
-                && "DELETE".equals(value.get("operation").getAsString());
-            long mutationTime = value.has("occurred_at")
-                ? value.get("occurred_at").getAsLong() : 0;
+            boolean deleted = value.has("operation") && "DELETE".equals(value.get("operation").getAsString());
+            long mutationTime = value.has("occurred_at") ? value.get("occurred_at").getAsLong() : 0;
             for (FeatureUpdate update : FeatureUpdates.fromEvent(event, deleted, mutationTime)) {
                 if ("user".equals(update.getEntityType()) && update.getEventTime() <= asOf) {
                     accumulator.add(update);
@@ -243,23 +236,28 @@ public class EventFeatureAccumulatorTest {
         FeatureSnapshot snapshot = accumulator.snapshot(asOf);
         JsonObject expected = fixture.getAsJsonObject("expected_user");
         for (String name : expected.keySet()) {
-            assertEquals(name, expected.get(name).getAsDouble(),
-                snapshot.getFeatures().get(name), 0d);
+            assertEquals(name, expected.get(name).getAsDouble(), snapshot.getFeatures().get(name), 0d);
         }
     }
 
-    private static Event event(String user, String item, String scene, String type,
-        String value, String time) {
+    private static Event event(String user, String item, String scene, String type, String value, String time) {
         Event event = new Event();
-        event.setUserId(user); event.setItemId(item); event.setScene(scene);
-        event.setType(type); event.setValue(value); event.setTime(time);
+        event.setUserId(user);
+        event.setItemId(item);
+        event.setScene(scene);
+        event.setType(type);
+        event.setValue(value);
+        event.setTime(time);
         return event;
     }
 
     private static void context(Event event, String category, String subcategory, double price) {
         Map<String, Object> item = new LinkedHashMap<>();
-        item.put("category", category); item.put("subcategory", subcategory); item.put("price", price);
-        Map<String, Object> ext = new LinkedHashMap<>(); ext.put("_openrecItemContext", item);
+        item.put("category", category);
+        item.put("subcategory", subcategory);
+        item.put("price", price);
+        Map<String, Object> ext = new LinkedHashMap<>();
+        ext.put("_openrecItemContext", item);
         event.setExtFields(ext);
     }
 }

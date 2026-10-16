@@ -20,16 +20,16 @@ public final class FeatureUpdates {
             return Collections.emptyList();
         }
         Long time = parseLong(event.getTime());
-        if (time == null) { return Collections.emptyList(); }
+        if (time == null) {
+            return Collections.emptyList();
+        }
         double value = parseDouble(event.getValue());
         List<FeatureUpdate> updates = new ArrayList<>();
-        updates.add(update("user", event.getUserId(), event.getItemId(), event, time, value,
-            deleted, mutationTime));
-        updates.add(update("item", event.getItemId(), event.getUserId(), event, time, value,
-            deleted, mutationTime));
+        updates.add(update("user", event.getUserId(), event.getItemId(), event, time, value, deleted, mutationTime));
+        updates.add(update("item", event.getItemId(), event.getUserId(), event, time, value, deleted, mutationTime));
         if (!blank(event.getSessionId())) {
-            updates.add(update("session", event.getSessionId(), event.getItemId(), event, time,
-                value, deleted, mutationTime));
+            updates.add(
+                update("session", event.getSessionId(), event.getItemId(), event, time, value, deleted, mutationTime));
         }
         return updates;
     }
@@ -38,8 +38,8 @@ public final class FeatureUpdates {
         return value == null || value.trim().isEmpty();
     }
 
-    private static FeatureUpdate update(String entityType, String entityId, String counterpart,
-        Event event, long time, double value, boolean deleted, long mutationTime) {
+    private static FeatureUpdate update(String entityType, String entityId, String counterpart, Event event, long time,
+        double value, boolean deleted, long mutationTime) {
         FeatureUpdate update = new FeatureUpdate();
         update.setEntityType(entityType);
         update.setEntityId(entityId);
@@ -57,7 +57,8 @@ public final class FeatureUpdates {
             update.setSubcategory(text(context, "subcategory"));
             Double price = number(context, "price");
             if (price != null && price >= 0d) {
-                update.setPrice(price); update.setHasPrice(true);
+                update.setPrice(price);
+                update.setHasPrice(true);
             }
         }
         return update;
@@ -66,10 +67,14 @@ public final class FeatureUpdates {
     private static JsonObject itemContext(Event event) {
         try {
             JsonElement ext = new com.google.gson.Gson().toJsonTree(event.getExtFields());
-            if (!ext.isJsonObject()) { return null; }
+            if (!ext.isJsonObject()) {
+                return null;
+            }
             JsonElement value = ext.getAsJsonObject().get("_openrecItemContext");
             return value != null && value.isJsonObject() ? value.getAsJsonObject() : null;
-        } catch (RuntimeException ignored) { return null; }
+        } catch (RuntimeException ignored) {
+            return null;
+        }
     }
 
     private static String text(JsonObject value, String name) {
@@ -81,32 +86,45 @@ public final class FeatureUpdates {
         try {
             double result = value.get(name).getAsDouble();
             return Double.isFinite(result) ? result : null;
-        } catch (Exception ignored) { return null; }
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private static Long parseLong(String value) {
         try {
             double parsed = Double.parseDouble(value);
             return Double.isFinite(parsed) && parsed == Math.rint(parsed) ? (long)parsed : null;
-        } catch (Exception ignored) { return null; }
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private static double parseDouble(String value) {
-        try { return Double.parseDouble(value); } catch (Exception ignored) { return 0d; }
+        try {
+            return Double.parseDouble(value);
+        } catch (Exception ignored) {
+            return 0d;
+        }
     }
 
     private static String identity(Event event, long time) {
-        if (!blank(event.getEventId())) { return "event:" + event.getEventId(); }
-        return "fields:" + event.getUserId() + "\u001f" + event.getItemId() + "\u001f"
-            + text(event.getScene()) + "\u001f" + text(event.getType())
-            + "\u001f" + time + "\u001f" + text(event.getTraceId());
+        if (!blank(event.getEventId())) {
+            return "event:" + event.getEventId();
+        }
+        return "fields:" + event.getUserId() + "\u001f" + event.getItemId() + "\u001f" + text(event.getScene())
+            + "\u001f" + text(event.getType()) + "\u001f" + time + "\u001f" + text(event.getTraceId());
     }
 
     public static String identity(Event event) {
-        if (event == null) { return null; }
+        if (event == null) {
+            return null;
+        }
         Long time = parseLong(event.getTime());
         return time == null ? null : identity(event, time);
     }
 
-    private static String text(String value) { return value == null ? "" : value; }
+    private static String text(String value) {
+        return value == null ? "" : value;
+    }
 }

@@ -12,14 +12,19 @@ import com.openrec.dp.feature.FeatureUpdate;
 
 public class EventFeatureProcessFunction extends KeyedProcessFunction<String, FeatureUpdate, FeatureSnapshot> {
     private transient ValueState<EventFeatureAccumulator> state;
-    @Override public void open(OpenContext parameters) {
-        state = getRuntimeContext().getState(new ValueStateDescriptor<>(
-            "event-feature-accumulator", EventFeatureAccumulator.class));
+
+    @Override
+    public void open(OpenContext parameters) {
+        state = getRuntimeContext()
+            .getState(new ValueStateDescriptor<>("event-feature-accumulator", EventFeatureAccumulator.class));
     }
-    @Override public void processElement(FeatureUpdate value, Context context,
-        Collector<FeatureSnapshot> out) throws Exception {
+
+    @Override
+    public void processElement(FeatureUpdate value, Context context, Collector<FeatureSnapshot> out) throws Exception {
         EventFeatureAccumulator accumulator = state.value();
-        if (accumulator == null) { accumulator = new EventFeatureAccumulator(); }
+        if (accumulator == null) {
+            accumulator = new EventFeatureAccumulator();
+        }
         accumulator.add(value);
         out.collect(accumulator.currentSnapshot());
         state.update(accumulator);
@@ -28,7 +33,9 @@ public class EventFeatureProcessFunction extends KeyedProcessFunction<String, Fe
     /** Deterministic batch adapter used by the cross-engine feature parity gate. */
     public static FeatureSnapshot aggregateForParity(Iterable<FeatureUpdate> values, long asOfTime) {
         EventFeatureAccumulator accumulator = new EventFeatureAccumulator();
-        for (FeatureUpdate value : values) { accumulator.add(value); }
+        for (FeatureUpdate value : values) {
+            accumulator.add(value);
+        }
         return accumulator.snapshot(asOfTime);
     }
 }

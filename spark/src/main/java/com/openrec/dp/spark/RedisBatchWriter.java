@@ -29,7 +29,8 @@ final class RedisBatchWriter {
     static StreamingQuery persistRaw(Dataset<Row> input, String type, Properties p) throws Exception {
         String output = p.getProperty("hdfs.output") + "/hive/" + type;
         String checkpoint = p.getProperty("checkpoint.path") + "/raw-" + type;
-        String host = p.getProperty("redis.host"); int port = Integer.parseInt(p.getProperty("redis.port"));
+        String host = p.getProperty("redis.host");
+        int port = Integer.parseInt(p.getProperty("redis.port"));
         boolean hbaseEnabled = Boolean.parseBoolean(p.getProperty("hbase.enabled", "true"));
         boolean hiveEnabled = Boolean.parseBoolean(p.getProperty("hive.enabled", "true"));
         String quorum = p.getProperty("hbase.zookeeper.quorum", "zookeeper-1,zookeeper-2,zookeeper-3");
@@ -38,19 +39,22 @@ final class RedisBatchWriter {
         long newMaxItems = Long.parseLong(p.getProperty("redis.new.max-items", "10000"));
         return input.writeStream().option("checkpointLocation", checkpoint).foreachBatch((batch, id) -> {
             if (hiveEnabled) {
-                batch.select(col("json"), udf((String json) -> EntityPartitions.bucket(type, json),
-                    DataTypes.StringType).apply(col("json")).alias("bucket"))
+                batch
+                    .select(col("json"),
+                        udf((String json) -> EntityPartitions.bucket(type, json), DataTypes.StringType)
+                            .apply(col("json")).alias("bucket"))
                     .withColumn("dt", org.apache.spark.sql.functions.regexp_replace(col("bucket"), "^dt=", ""))
                     .drop("bucket").write().mode("append").partitionBy("dt").text(output);
             }
             batch.foreachPartition(rows -> {
-                try (JedisPooled jedis = new JedisPooled(host, port);
-                     HBaseEntityWriter hbase = hbaseEnabled
-                         ? new HBaseEntityWriter(type, quorum, znode, prefix) : null) {
+                try (JedisPooled jedis = new JedisPooled(host, port); HBaseEntityWriter hbase =
+                    hbaseEnabled ? new HBaseEntityWriter(type, quorum, znode, prefix) : null) {
                     while (rows.hasNext()) {
                         String json = rows.next().getString(0);
                         writeRaw(jedis, type, json, newMaxItems);
-                        if (hbase != null) { hbase.write(type, json); }
+                        if (hbase != null) {
+                            hbase.write(type, json);
+                        }
                     }
                 }
             });
@@ -61,12 +65,15 @@ final class RedisBatchWriter {
         String checkpoint = p.getProperty("feature.checkpoint.path",
             SparkFeatureJob.featureCheckpoint(p.getProperty("checkpoint.path")));
         return input.writeStream().outputMode("update").option("checkpointLocation", checkpoint)
-            .foreachBatch((batch, id) -> { persistSnapshotBatch(batch, p); }).start();
+            .foreachBatch((batch, id) -> {
+                persistSnapshotBatch(batch, p);
+            }).start();
     }
 
     static void persistSnapshotBatch(Dataset<FeatureSnapshot> batch, Properties p) {
         String output = p.getProperty("hdfs.output") + "/features";
-        String host = p.getProperty("redis.host"); int port = Integer.parseInt(p.getProperty("redis.port"));
+        String host = p.getProperty("redis.host");
+        int port = Integer.parseInt(p.getProperty("redis.port"));
         batch.toJSON().write().mode("append").text(output);
         batch.foreachPartition(snapshots -> {
             try (JedisPooled jedis = new JedisPooled(host, port)) {
@@ -80,35 +87,47 @@ final class RedisBatchWriter {
 
     private static void writeRaw(JedisPooled jedis, String type, String json, long newMaxItems) {
         EntityMessage message = EntityMessage.parse(type, json);
-        if (message == null) { return; }
+        if (message == null) {
+            return;
+        }
         json = message.getDataJson();
         if ("user".equals(type)) {
             User user = FeatureJson.fromJson(json, User.class);
             if (user != null && user.getId() != null) {
-                if (!acceptMutation(jedis, "mutation:user:{" + user.getId() + "}",
-                                    message.getOccurredAt(), message.isDelete())) { return; }
-                if (message.isDelete()) { jedis.del("user:{" + user.getId() + "}"); }
-                else { jedis.set("user:{" + user.getId() + "}", json); }
+                if (!acceptMutation(jedis, "mutation:user:{" + user.getId() + "}", message.getOccurredAt(),
+                    message.isDelete())) {
+                    return;
+                }
+                if (message.isDelete()) {
+                    jedis.del("user:{" + user.getId() + "}");
+                } else {
+                    jedis.set("user:{" + user.getId() + "}", json);
+                }
             }
         } else if ("item".equals(type)) {
             Item item = FeatureJson.fromJson(json, Item.class);
             if (item != null && item.getId() != null) {
-                if (!acceptMutation(jedis, "mutation:item:{" + item.getId() + "}",
-                                    message.getOccurredAt(), message.isDelete())) { return; }
+                if (!acceptMutation(jedis, "mutation:item:{" + item.getId() + "}", message.getOccurredAt(),
+                    message.isDelete())) {
+                    return;
+                }
                 if (message.isDelete()) {
                     String existing = jedis.get("item:{" + item.getId() + "}");
                     Item old = FeatureJson.fromJson(existing, Item.class);
-                    String scene = item.getScene() != null ? item.getScene()
-                        : old == null ? null : old.getScene();
+                    String scene = item.getScene() != null ? item.getScene() : old == null ? null : old.getScene();
                     jedis.del("item:{" + item.getId() + "}");
-                    if (scene != null) { jedis.zrem("new:{" + scene + "}", item.getId()); }
+                    if (scene != null) {
+                        jedis.zrem("new:{" + scene + "}", item.getId());
+                    }
                     return;
                 }
                 jedis.set("item:{" + item.getId() + "}", json);
                 if (item.getScene() != null && !item.getScene().trim().isEmpty()) {
                     String key = "new:{" + item.getScene() + "}";
                     jedis.zadd(key, number(item.getPubTime()), item.getId());
-                    if (newMaxItems > 0) { jedis.zremrangeByRank(key, 0, -newMaxItems - 1); }
+                    if (newMaxItems > 0) {
+                        jedis.zremrangeByRank(key, 0, -newMaxItems - 1);
+                    }
                 }
             }
         } else {
@@ -116,31 +135,44 @@ final class RedisBatchWriter {
             if (event != null && event.getUserId() != null && event.getItemId() != null) {
                 String identity = FeatureUpdates.identity(event);
                 if (identity == null || !acceptMutation(jedis, "mutation:event:{" + identity + "}",
-                    message.getOccurredAt(), message.isDelete())) { return; }
+                    message.getOccurredAt(), message.isDelete())) {
+                    return;
+                }
                 String key = "event:{" + event.getUserId() + "}:" + event.getScene() + ":" + event.getType();
                 if ("dislike".equalsIgnoreCase(event.getType())) {
                     for (String rule : DislikeRules.parse(event.getValue())) {
-                        if (message.isDelete()) { jedis.zrem(key, rule); }
-                        else { jedis.zadd(key, number(event.getTime()), rule); }
+                        if (message.isDelete()) {
+                            jedis.zrem(key, rule);
+                        } else {
+                            jedis.zadd(key, number(event.getTime()), rule);
+                        }
                     }
                 } else {
-                    if (message.isDelete()) { jedis.zrem(key, event.getItemId()); }
-                    else { jedis.zadd(key, number(event.getTime()), event.getItemId()); }
+                    if (message.isDelete()) {
+                        jedis.zrem(key, event.getItemId());
+                    } else {
+                        jedis.zadd(key, number(event.getTime()), event.getItemId());
+                    }
                 }
             }
         }
     }
+
     private static double number(String value) {
-        try { return Double.parseDouble(value); } catch (Exception ignored) { return 0d; }
+        try {
+            return Double.parseDouble(value);
+        } catch (Exception ignored) {
+            return 0d;
+        }
     }
-    private static boolean acceptMutation(JedisPooled jedis, String key, long occurredAt,
-        boolean deleted) {
-        String script = "local old=redis.call('GET',KEYS[1]); "
-            + "local incoming=tonumber(ARGV[1]); local tomb=tonumber(ARGV[2]); "
-            + "if old then local sep=string.find(old,':'); local ts=tonumber(string.sub(old,1,sep-1)); "
-            + "local was_tomb=tonumber(string.sub(old,sep+1)); "
-            + "if incoming < ts or (incoming == ts and tomb < was_tomb) then return 0 end end; "
-            + "redis.call('SET',KEYS[1],ARGV[1]..':'..ARGV[2]); return 1";
+
+    private static boolean acceptMutation(JedisPooled jedis, String key, long occurredAt, boolean deleted) {
+        String script =
+            "local old=redis.call('GET',KEYS[1]); " + "local incoming=tonumber(ARGV[1]); local tomb=tonumber(ARGV[2]); "
+                + "if old then local sep=string.find(old,':'); local ts=tonumber(string.sub(old,1,sep-1)); "
+                + "local was_tomb=tonumber(string.sub(old,sep+1)); "
+                + "if incoming < ts or (incoming == ts and tomb < was_tomb) then return 0 end end; "
+                + "redis.call('SET',KEYS[1],ARGV[1]..':'..ARGV[2]); return 1";
         Object result = jedis.eval(script, Collections.singletonList(key),
             Arrays.asList(Long.toString(occurredAt), deleted ? "1" : "0"));
         return Long.valueOf(1L).equals(result);

@@ -8,7 +8,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Properties;
 
-
 @Slf4j
 public class FileUtil {
 

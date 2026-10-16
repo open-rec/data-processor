@@ -18,14 +18,26 @@ public class EntityRecord implements Serializable {
         this.json = json;
     }
 
-    public String getType() { return type; }
-    public String getRowKey() { return rowKey; }
-    public String getJson() { return json; }
+    public String getType() {
+        return type;
+    }
+
+    public String getRowKey() {
+        return rowKey;
+    }
+
+    public String getJson() {
+        return json;
+    }
 
     public static EntityRecord fromJson(String type, String json) {
-        if (blank(type) || blank(json)) { return null; }
+        if (blank(type) || blank(json)) {
+            return null;
+        }
         EntityMessage message = EntityMessage.parse(type, json);
-        if (message == null) { return null; }
+        if (message == null) {
+            return null;
+        }
         json = message.getDataJson();
         if ("user".equals(type)) {
             User user = FeatureJson.fromJson(json, User.class);
@@ -37,16 +49,22 @@ public class EntityRecord implements Serializable {
         }
         if ("event".equals(type)) {
             Event event = FeatureJson.fromJson(json, Event.class);
-            if (event == null || blank(event.getUserId()) || blank(event.getItemId())) { return null; }
+            if (event == null || blank(event.getUserId()) || blank(event.getItemId())) {
+                return null;
+            }
             String key = !blank(event.getEventId()) ? event.getEventId()
-                : part(event.getTime()) + "#" + event.getUserId() + "#" + event.getItemId()
-                    + "#" + part(event.getScene()) + "#" + part(event.getType())
-                    + "#" + part(event.getTraceId());
+                : part(event.getTime()) + "#" + event.getUserId() + "#" + event.getItemId() + "#"
+                    + part(event.getScene()) + "#" + part(event.getType()) + "#" + part(event.getTraceId());
             return new EntityRecord(type, key, json);
         }
         return null;
     }
 
-    private static String part(String value) { return value == null ? "" : value; }
-    private static boolean blank(String value) { return value == null || value.trim().isEmpty(); }
+    private static String part(String value) {
+        return value == null ? "" : value;
+    }
+
+    private static boolean blank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
 }

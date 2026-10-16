@@ -18,13 +18,16 @@ import com.openrec.dp.feature.FeatureUpdates;
 import com.openrec.proto.model.Event;
 
 public class SparkFeatureParityTest {
-    @Test public void matchesCanonicalPythonFixture() {
+    @Test
+    public void matchesCanonicalPythonFixture() {
         JsonObject fixture = fixture();
         long asOf = fixture.get("as_of_time").getAsLong();
         List<FeatureUpdate> updates = updates(fixture, asOf);
         List<FeatureUpdate> userUpdates = new ArrayList<>();
         for (FeatureUpdate update : updates) {
-            if ("user".equals(update.getEntityType())) { userUpdates.add(update); }
+            if ("user".equals(update.getEntityType())) {
+                userUpdates.add(update);
+            }
         }
         FeatureSnapshot actual = SparkFeatureJob.aggregateForParity(userUpdates, asOf);
         JsonObject expected = fixture.getAsJsonObject("expected_user");
@@ -37,8 +40,9 @@ public class SparkFeatureParityTest {
     }
 
     private JsonObject fixture() {
-        return new JsonParser().parse(new InputStreamReader(getClass().getClassLoader()
-            .getResourceAsStream("event-feature-parity.json"))).getAsJsonObject();
+        return new JsonParser()
+            .parse(new InputStreamReader(getClass().getClassLoader().getResourceAsStream("event-feature-parity.json")))
+            .getAsJsonObject();
     }
 
     private List<FeatureUpdate> updates(JsonObject fixture, long asOf) {
@@ -46,7 +50,9 @@ public class SparkFeatureParityTest {
         for (JsonElement element : fixture.getAsJsonArray("events")) {
             JsonObject value = element.getAsJsonObject();
             Event event = new Event();
-            if (value.has("event_id")) { event.setEventId(value.get("event_id").getAsString()); }
+            if (value.has("event_id")) {
+                event.setEventId(value.get("event_id").getAsString());
+            }
             event.setUserId(value.get("user_id").getAsString());
             event.setItemId(value.get("item_id").getAsString());
             event.setScene(value.get("scene").getAsString());
@@ -54,8 +60,7 @@ public class SparkFeatureParityTest {
             event.setValue(value.get("value").getAsString());
             event.setTime(value.get("time").getAsString());
             event.setTraceId(value.get("trace_id").getAsString());
-            boolean deleted = value.has("operation")
-                && "DELETE".equals(value.get("operation").getAsString());
+            boolean deleted = value.has("operation") && "DELETE".equals(value.get("operation").getAsString());
             long mutationTime = value.has("occurred_at") ? value.get("occurred_at").getAsLong() : 0;
             for (FeatureUpdate update : FeatureUpdates.fromEvent(event, deleted, mutationTime)) {
                 if (update.getEventTime() <= asOf) {
@@ -78,8 +83,8 @@ public class SparkFeatureParityTest {
             JsonObject expected = item.getValue().getAsJsonObject();
             assertEquals(expected.size(), actual.getFeatures().size());
             for (Map.Entry<String, JsonElement> entry : expected.entrySet()) {
-                assertEquals(entry.getKey(), entry.getValue().getAsDouble(),
-                    actual.getFeatures().get(entry.getKey()), 0d);
+                assertEquals(entry.getKey(), entry.getValue().getAsDouble(), actual.getFeatures().get(entry.getKey()),
+                    0d);
             }
         }
     }

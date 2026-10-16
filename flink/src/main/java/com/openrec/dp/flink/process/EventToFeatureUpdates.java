@@ -10,11 +10,13 @@ import com.openrec.dp.feature.FeatureUpdates;
 import com.openrec.proto.model.Event;
 
 public class EventToFeatureUpdates implements FlatMapFunction<String, FeatureUpdate> {
-    @Override public void flatMap(String json, Collector<FeatureUpdate> out) {
+    @Override
+    public void flatMap(String json, Collector<FeatureUpdate> out) {
         EntityMessage message = EntityMessage.parse("event", json);
         Event event = message == null ? null : FeatureJson.fromJson(message.getDataJson(), Event.class);
-        if (event == null) { return; }
-        FeatureUpdates.fromEvent(event, message.isDelete(), message.getOccurredAt())
-            .forEach(out::collect);
+        if (event == null) {
+            return;
+        }
+        FeatureUpdates.fromEvent(event, message.isDelete(), message.getOccurredAt()).forEach(out::collect);
     }
 }

@@ -37,7 +37,8 @@ public class HBaseEntitySink extends RichSinkFunction<String> {
         tablePrefix = p.getProperty("hbase.table.prefix", "openrec_");
     }
 
-    @Override public void open(OpenContext parameters) throws Exception {
+    @Override
+    public void open(OpenContext parameters) throws Exception {
         org.apache.hadoop.conf.Configuration config = HBaseConfiguration.create();
         config.set("hbase.zookeeper.quorum", quorum);
         config.set("zookeeper.znode.parent", znode);
@@ -48,15 +49,19 @@ public class HBaseEntitySink extends RichSinkFunction<String> {
                 try {
                     admin.createTable(TableDescriptorBuilder.newBuilder(name)
                         .setColumnFamily(ColumnFamilyDescriptorBuilder.of(FAMILY)).build());
-                } catch (org.apache.hadoop.hbase.TableExistsException ignored) { }
+                } catch (org.apache.hadoop.hbase.TableExistsException ignored) {
+                }
             }
         }
         table = connection.getTable(name);
     }
 
-    @Override public void invoke(String json, Context context) throws Exception {
+    @Override
+    public void invoke(String json, Context context) throws Exception {
         EntityRecord record = EntityRecord.fromJson(type, json);
-        if (record == null) { return; }
+        if (record == null) {
+            return;
+        }
         EntityMessage message = EntityMessage.parse(type, json);
         if (message != null && message.isDelete()) {
             table.delete(new Delete(record.getRowKey().getBytes(StandardCharsets.UTF_8)));
@@ -67,8 +72,13 @@ public class HBaseEntitySink extends RichSinkFunction<String> {
         table.put(put);
     }
 
-    @Override public void close() throws Exception {
-        if (table != null) { table.close(); }
-        if (connection != null) { connection.close(); }
+    @Override
+    public void close() throws Exception {
+        if (table != null) {
+            table.close();
+        }
+        if (connection != null) {
+            connection.close();
+        }
     }
 }

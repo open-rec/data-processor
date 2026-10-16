@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main, 'release/**']
+    branches: ['**']
 
 permissions:
   contents: read
@@ -13,6 +13,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  format:
+    name: Java format
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Check Alibaba Java formatting
+        run: mvn --batch-mode --no-transfer-progress spotless:check
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 45

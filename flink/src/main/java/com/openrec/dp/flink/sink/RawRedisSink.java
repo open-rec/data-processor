@@ -24,43 +24,63 @@ public class RawRedisSink extends RichSinkFunction<String> {
     private final int port;
     private final long newMaxItems;
     private transient JedisPooled jedis;
+
     public RawRedisSink(String type, Properties p) {
-        this.type = type; host = p.getProperty("redis.host");
+        this.type = type;
+        host = p.getProperty("redis.host");
         port = Integer.parseInt(p.getProperty("redis.port"));
         newMaxItems = Long.parseLong(p.getProperty("redis.new.max-items", "10000"));
     }
-    @Override public void open(OpenContext parameters) { jedis = new JedisPooled(host, port); }
-    @Override public void invoke(String json, Context context) {
+
+    @Override
+    public void open(OpenContext parameters) {
+        jedis = new JedisPooled(host, port);
+    }
+
+    @Override
+    public void invoke(String json, Context context) {
         EntityMessage message = EntityMessage.parse(type, json);
-        if (message == null) { return; }
+        if (message == null) {
+            return;
+        }
         json = message.getDataJson();
         if ("user".equals(type)) {
             User user = FeatureJson.fromJson(json, User.class);
             if (user != null && user.getId() != null) {
-                if (!acceptMutation(jedis, "mutation:user:{" + user.getId() + "}",
-                                    message.getOccurredAt(), message.isDelete())) { return; }
-                if (message.isDelete()) { jedis.del("user:{" + user.getId() + "}"); }
-                else { jedis.set("user:{" + user.getId() + "}", json); }
+                if (!acceptMutation(jedis, "mutation:user:{" + user.getId() + "}", message.getOccurredAt(),
+                    message.isDelete())) {
+                    return;
+                }
+                if (message.isDelete()) {
+                    jedis.del("user:{" + user.getId() + "}");
+                } else {
+                    jedis.set("user:{" + user.getId() + "}", json);
+                }
             }
         } else if ("item".equals(type)) {
             Item item = FeatureJson.fromJson(json, Item.class);
             if (item != null && item.getId() != null) {
-                if (!acceptMutation(jedis, "mutation:item:{" + item.getId() + "}",
-                                    message.getOccurredAt(), message.isDelete())) { return; }
+                if (!acceptMutation(jedis, "mutation:item:{" + item.getId() + "}", message.getOccurredAt(),
+                    message.isDelete())) {
+                    return;
+                }
                 if (message.isDelete()) {
                     String existing = jedis.get("item:{" + item.getId() + "}");
                     Item old = FeatureJson.fromJson(existing, Item.class);
-                    String scene = item.getScene() != null ? item.getScene()
-                        : old == null ? null : old.getScene();
+                    String scene = item.getScene() != null ? item.getScene() : old == null ? null : old.getScene();
                     jedis.del("item:{" + item.getId() + "}");
-                    if (scene != null) { jedis.zrem("new:{" + scene + "}", item.getId()); }
+                    if (scene != null) {
+                        jedis.zrem("new:{" + scene + "}", item.getId());
+                    }
                     return;
                 }
                 jedis.set("item:{" + item.getId() + "}", json);
                 if (item.getScene() != null && !item.getScene().trim().isEmpty()) {
                     String key = "new:{" + item.getScene() + "}";
                     jedis.zadd(key, parse(item.getPubTime()), item.getId());
-                    if (newMaxItems > 0) { jedis.zremrangeByRank(key, 0, -newMaxItems - 1); }
+                    if (newMaxItems > 0) {
+                        jedis.zremrangeByRank(key, 0, -newMaxItems - 1);
+                    }
                 }
             }
         } else {
@@ -68,34 +88,53 @@ public class RawRedisSink extends RichSinkFunction<String> {
             if (event != null && event.getUserId() != null && event.getItemId() != null) {
                 String identity = FeatureUpdates.identity(event);
                 if (identity == null || !acceptMutation(jedis, "mutation:event:{" + identity + "}",
-                    message.getOccurredAt(), message.isDelete())) { return; }
+                    message.getOccurredAt(), message.isDelete())) {
+                    return;
+                }
                 String key = "event:{" + event.getUserId() + "}:" + event.getScene() + ":" + event.getType();
                 if ("dislike".equalsIgnoreCase(event.getType())) {
                     for (String rule : DislikeRules.parse(event.getValue())) {
-                        if (message.isDelete()) { jedis.zrem(key, rule); }
-                        else { jedis.zadd(key, parse(event.getTime()), rule); }
+                        if (message.isDelete()) {
+                            jedis.zrem(key, rule);
+                        } else {
+                            jedis.zadd(key, parse(event.getTime()), rule);
+                        }
                     }
                 } else {
-                    if (message.isDelete()) { jedis.zrem(key, event.getItemId()); }
-                    else { jedis.zadd(key, parse(event.getTime()), event.getItemId()); }
+                    if (message.isDelete()) {
+                        jedis.zrem(key, event.getItemId());
+                    } else {
+                        jedis.zadd(key, parse(event.getTime()), event.getItemId());
+                    }
                 }
             }
         }
     }
+
     private static double parse(String value) {
-        try { return Double.parseDouble(value); } catch (Exception ignored) { return 0d; }
+        try {
+            return Double.parseDouble(value);
+        } catch (Exception ignored) {
+            return 0d;
+        }
     }
-    private static boolean acceptMutation(JedisPooled jedis, String key, long occurredAt,
-        boolean deleted) {
-        String script = "local old=redis.call('GET',KEYS[1]); "
-            + "local incoming=tonumber(ARGV[1]); local tomb=tonumber(ARGV[2]); "
-            + "if old then local sep=string.find(old,':'); local ts=tonumber(string.sub(old,1,sep-1)); "
-            + "local was_tomb=tonumber(string.sub(old,sep+1)); "
-            + "if incoming < ts or (incoming == ts and tomb < was_tomb) then return 0 end end; "
-            + "redis.call('SET',KEYS[1],ARGV[1]..':'..ARGV[2]); return 1";
+
+    private static boolean acceptMutation(JedisPooled jedis, String key, long occurredAt, boolean deleted) {
+        String script =
+            "local old=redis.call('GET',KEYS[1]); " + "local incoming=tonumber(ARGV[1]); local tomb=tonumber(ARGV[2]); "
+                + "if old then local sep=string.find(old,':'); local ts=tonumber(string.sub(old,1,sep-1)); "
+                + "local was_tomb=tonumber(string.sub(old,sep+1)); "
+                + "if incoming < ts or (incoming == ts and tomb < was_tomb) then return 0 end end; "
+                + "redis.call('SET',KEYS[1],ARGV[1]..':'..ARGV[2]); return 1";
         Object result = jedis.eval(script, Collections.singletonList(key),
             Arrays.asList(Long.toString(occurredAt), deleted ? "1" : "0"));
         return Long.valueOf(1L).equals(result);
     }
-    @Override public void close() { if (jedis != null) { jedis.close(); } }
+
+    @Override
+    public void close() {
+        if (jedis != null) {
+            jedis.close();
+        }
+    }
 }

@@ -30,12 +30,12 @@ public final class FeatureCatalogContract {
     private final Set<String> sessionColumns;
     private final Set<String> sessionStringColumns;
 
-    private FeatureCatalogContract(int version, String sha256, List<Long> windows,
-        List<WindowFeature> windowFeatures, List<RateFeature> rateFeatures,
-        Set<String> eventTypes, Set<String> userColumns, Set<String> itemColumns,
-        Set<String> userStringColumns, Set<String> itemStringColumns,
-        Set<String> sessionColumns, Set<String> sessionStringColumns) {
-        this.version = version; this.sha256 = sha256;
+    private FeatureCatalogContract(int version, String sha256, List<Long> windows, List<WindowFeature> windowFeatures,
+        List<RateFeature> rateFeatures, Set<String> eventTypes, Set<String> userColumns, Set<String> itemColumns,
+        Set<String> userStringColumns, Set<String> itemStringColumns, Set<String> sessionColumns,
+        Set<String> sessionStringColumns) {
+        this.version = version;
+        this.sha256 = sha256;
         this.windows = Collections.unmodifiableList(windows);
         this.windowFeatures = Collections.unmodifiableList(windowFeatures);
         this.rateFeatures = Collections.unmodifiableList(rateFeatures);
@@ -48,31 +48,66 @@ public final class FeatureCatalogContract {
         this.sessionStringColumns = Collections.unmodifiableSet(sessionStringColumns);
     }
 
-    public static FeatureCatalogContract get() { return INSTANCE; }
-    public int getVersion() { return version; }
-    public String getSha256() { return sha256; }
-    public List<Long> getWindows() { return windows; }
-    public List<WindowFeature> getWindowFeatures() { return windowFeatures; }
-    public List<RateFeature> getRateFeatures() { return rateFeatures; }
-    public Set<String> getEventTypes() { return eventTypes; }
+    public static FeatureCatalogContract get() {
+        return INSTANCE;
+    }
+
+    public int getVersion() {
+        return version;
+    }
+
+    public String getSha256() {
+        return sha256;
+    }
+
+    public List<Long> getWindows() {
+        return windows;
+    }
+
+    public List<WindowFeature> getWindowFeatures() {
+        return windowFeatures;
+    }
+
+    public List<RateFeature> getRateFeatures() {
+        return rateFeatures;
+    }
+
+    public Set<String> getEventTypes() {
+        return eventTypes;
+    }
+
     public Set<String> getColumns(String entity) {
-        if ("user".equals(entity)) { return userColumns; }
-        if ("session".equals(entity)) { return sessionColumns; }
+        if ("user".equals(entity)) {
+            return userColumns;
+        }
+        if ("session".equals(entity)) {
+            return sessionColumns;
+        }
         return itemColumns;
     }
+
     public Set<String> getStringColumns(String entity) {
-        if ("user".equals(entity)) { return userStringColumns; }
-        if ("session".equals(entity)) { return sessionStringColumns; }
+        if ("user".equals(entity)) {
+            return userStringColumns;
+        }
+        if ("session".equals(entity)) {
+            return sessionStringColumns;
+        }
         return itemStringColumns;
     }
 
     private static FeatureCatalogContract load() {
-        try (InputStream in = FeatureCatalogContract.class.getClassLoader()
-                .getResourceAsStream("openrec-feature-catalog.json")) {
-            if (in == null) { throw new IllegalStateException("feature catalog resource missing"); }
+        try (InputStream in =
+            FeatureCatalogContract.class.getClassLoader().getResourceAsStream("openrec-feature-catalog.json")) {
+            if (in == null) {
+                throw new IllegalStateException("feature catalog resource missing");
+            }
             ByteArrayOutputStream output = new ByteArrayOutputStream();
-            byte[] buffer = new byte[4096]; int read;
-            while ((read = in.read(buffer)) >= 0) { output.write(buffer, 0, read); }
+            byte[] buffer = new byte[4096];
+            int read;
+            while ((read = in.read(buffer)) >= 0) {
+                output.write(buffer, 0, read);
+            }
             byte[] raw = output.toByteArray();
             JsonObject root = new JsonParser().parse(new String(raw, "UTF-8")).getAsJsonObject();
             Set<Long> windows = new LinkedHashSet<>();
@@ -88,7 +123,9 @@ public final class FeatureCatalogContract {
             JsonArray features = root.getAsJsonArray("features");
             for (JsonElement element : features) {
                 JsonObject feature = element.getAsJsonObject();
-                if (!"behavior".equals(feature.get("group").getAsString())) { continue; }
+                if (!"behavior".equals(feature.get("group").getAsString())) {
+                    continue;
+                }
                 JsonObject materialization = feature.getAsJsonObject("materialization");
                 if (materialization == null || !materialization.get("online").getAsBoolean()) {
                     continue;
@@ -97,41 +134,37 @@ public final class FeatureCatalogContract {
                 String name = feature.get("name").getAsString();
                 boolean stringValue = "string".equals(feature.get("value_type").getAsString());
                 if (stringValue) {
-                    ("user".equals(entity) ? userStrings :
-                        ("session".equals(entity) ? sessionStrings : itemStrings)).add(name);
+                    ("user".equals(entity) ? userStrings : ("session".equals(entity) ? sessionStrings : itemStrings))
+                        .add(name);
                 } else {
-                    ("user".equals(entity) ? users :
-                        ("session".equals(entity) ? sessions : items)).add(name);
+                    ("user".equals(entity) ? users : ("session".equals(entity) ? sessions : items)).add(name);
                 }
                 JsonObject aggregation = feature.getAsJsonObject("aggregation");
-                boolean directEvent = "event".equals(
-                    feature.getAsJsonObject("source").get("logical_entity").getAsString());
+                boolean directEvent =
+                    "event".equals(feature.getAsJsonObject("source").get("logical_entity").getAsString());
                 if (directEvent && aggregation != null && aggregation.has("window_seconds")) {
                     long seconds = aggregation.get("window_seconds").getAsLong();
                     windows.add(seconds);
-                    if ("user".equals(entity)
-                        && !"ratio".equals(aggregation.get("operator").getAsString())) {
+                    if ("user".equals(entity) && !"ratio".equals(aggregation.get("operator").getAsString())) {
                         String filter = aggregation.has("filter")
                             ? aggregation.getAsJsonObject("filter").get("type").getAsString() : null;
-                        windowFeatures.add(new WindowFeature(name, seconds,
-                            aggregation.get("operator").getAsString(), filter));
+                        windowFeatures
+                            .add(new WindowFeature(name, seconds, aggregation.get("operator").getAsString(), filter));
                     }
                 }
                 if (directEvent && aggregation != null && "user".equals(entity)
                     && "ratio".equals(aggregation.get("operator").getAsString())) {
-                    rateFeatures.add(new RateFeature(name,
-                        aggregation.get("numerator_type").getAsString(),
+                    rateFeatures.add(new RateFeature(name, aggregation.get("numerator_type").getAsString(),
                         aggregation.get("denominator_type").getAsString(),
-                        aggregation.has("window_seconds")
-                            ? aggregation.get("window_seconds").getAsLong() : 0L));
+                        aggregation.has("window_seconds") ? aggregation.get("window_seconds").getAsLong() : 0L));
                 }
                 if (directEvent && aggregation != null && aggregation.has("filter")) {
                     types.add(aggregation.getAsJsonObject("filter").get("type").getAsString());
                 }
             }
             return new FeatureCatalogContract(root.get("catalog_version").getAsInt(), hex(raw),
-                new ArrayList<>(windows), windowFeatures, rateFeatures, types, users, items,
-                userStrings, itemStrings, sessions, sessionStrings);
+                new ArrayList<>(windows), windowFeatures, rateFeatures, types, users, items, userStrings, itemStrings,
+                sessions, sessionStrings);
         } catch (Exception e) {
             throw new IllegalStateException("invalid feature catalog", e);
         }
@@ -144,13 +177,27 @@ public final class FeatureCatalogContract {
         private final String eventType;
 
         private WindowFeature(String name, long seconds, String operator, String eventType) {
-            this.name = name; this.seconds = seconds; this.operator = operator;
+            this.name = name;
+            this.seconds = seconds;
+            this.operator = operator;
             this.eventType = eventType;
         }
-        public String getName() { return name; }
-        public long getSeconds() { return seconds; }
-        public String getOperator() { return operator; }
-        public String getEventType() { return eventType; }
+
+        public String getName() {
+            return name;
+        }
+
+        public long getSeconds() {
+            return seconds;
+        }
+
+        public String getOperator() {
+            return operator;
+        }
+
+        public String getEventType() {
+            return eventType;
+        }
     }
 
     public static final class RateFeature {
@@ -159,21 +206,36 @@ public final class FeatureCatalogContract {
         private final String denominatorType;
         private final long seconds;
 
-        private RateFeature(String name, String numeratorType, String denominatorType,
-            long seconds) {
-            this.name = name; this.numeratorType = numeratorType;
-            this.denominatorType = denominatorType; this.seconds = seconds;
+        private RateFeature(String name, String numeratorType, String denominatorType, long seconds) {
+            this.name = name;
+            this.numeratorType = numeratorType;
+            this.denominatorType = denominatorType;
+            this.seconds = seconds;
         }
-        public String getName() { return name; }
-        public String getNumeratorType() { return numeratorType; }
-        public String getDenominatorType() { return denominatorType; }
-        public long getSeconds() { return seconds; }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getNumeratorType() {
+            return numeratorType;
+        }
+
+        public String getDenominatorType() {
+            return denominatorType;
+        }
+
+        public long getSeconds() {
+            return seconds;
+        }
     }
 
     private static String hex(byte[] raw) throws Exception {
         byte[] digest = MessageDigest.getInstance("SHA-256").digest(raw);
         StringBuilder result = new StringBuilder();
-        for (byte value : digest) { result.append(String.format("%02x", value & 0xff)); }
+        for (byte value : digest) {
+            result.append(String.format("%02x", value & 0xff));
+        }
         return result.toString();
     }
 }

@@ -30,7 +30,9 @@ import com.openrec.dp.flink.util.FileUtil;
 public class DpJob {
     public static void main(String[] args) throws Exception {
         Properties p = FileUtil.loadProperties("dp.properties");
-        if (p == null) { throw new IllegalStateException("dp.properties not found"); }
+        if (p == null) {
+            throw new IllegalStateException("dp.properties not found");
+        }
         if (args.length > 0) {
             try (java.io.InputStream in = java.nio.file.Files.newInputStream(java.nio.file.Paths.get(args[0]))) {
                 p.load(in);
@@ -48,26 +50,23 @@ public class DpJob {
         persistRaw(items, "item", p);
         persistRaw(events, "event", p);
 
-        DataStream<FeatureSnapshot> snapshots = events.flatMap(new EventToFeatureUpdates())
-            .name("event-to-user-and-item-updates")
-            .assignTimestampsAndWatermarks(WatermarkStrategy.<FeatureUpdate>forBoundedOutOfOrderness(
-                Duration.ofSeconds(Long.parseLong(p.getProperty("event.out-of-order.seconds", "30"))))
-                .withTimestampAssigner((update, timestamp) -> update.getEventTime() * 1000L))
-            .keyBy(FeatureUpdate::key)
-            .process(new EventFeatureProcessFunction());
+        DataStream<FeatureSnapshot> snapshots =
+            events.flatMap(new EventToFeatureUpdates()).name("event-to-user-and-item-updates")
+                .assignTimestampsAndWatermarks(WatermarkStrategy
+                    .<FeatureUpdate>forBoundedOutOfOrderness(
+                        Duration.ofSeconds(Long.parseLong(p.getProperty("event.out-of-order.seconds", "30"))))
+                    .withTimestampAssigner((update, timestamp) -> update.getEventTime() * 1000L))
+                .keyBy(FeatureUpdate::key).process(new EventFeatureProcessFunction());
         snapshots.addSink(new SnapshotRedisSink(p)).name("feature-snapshot-redis");
         snapshots.map(FeatureJson::toJson).sinkTo(fileSink(p, "features"));
         env.execute("openrec-flink-realtime-features");
     }
 
-    private static DataStream<String> source(StreamExecutionEnvironment env, Properties p,
-        String topicProperty, String name) {
+    private static DataStream<String> source(StreamExecutionEnvironment env, Properties p, String topicProperty,
+        String name) {
         String groupId = p.getProperty("kafka.groupId") + "-flink";
-        KafkaSource<String> source = KafkaSource.<String>builder()
-            .setBootstrapServers(p.getProperty("kafka.servers"))
-            .setTopics(p.getProperty(topicProperty))
-            .setGroupId(groupId)
-            .setClientIdPrefix(groupId + "-" + name)
+        KafkaSource<String> source = KafkaSource.<String>builder().setBootstrapServers(p.getProperty("kafka.servers"))
+            .setTopics(p.getProperty(topicProperty)).setGroupId(groupId).setClientIdPrefix(groupId + "-" + name)
             .setStartingOffsets(OffsetsInitializer.committedOffsets(OffsetResetStrategy.EARLIEST))
             .setValueOnlyDeserializer(new SimpleStringSchema()).build();
         return env.fromSource(source, WatermarkStrategy.noWatermarks(), "kafka-" + name);
@@ -84,13 +83,15 @@ public class DpJob {
     }
 
     private static FileSink<String> fileSink(Properties p, String path) {
-        return FileSink.forRowFormat(new Path(p.getProperty("hdfs.output") + "/" + path),
-            new SimpleStringEncoder<String>("UTF-8")).build();
+        return FileSink
+            .forRowFormat(new Path(p.getProperty("hdfs.output") + "/" + path), new SimpleStringEncoder<String>("UTF-8"))
+            .build();
     }
 
     private static FileSink<String> entityFileSink(Properties p, String type) {
-        return FileSink.forRowFormat(new Path(p.getProperty("hdfs.output") + "/hive/" + type),
-            new SimpleStringEncoder<String>("UTF-8"))
+        return FileSink
+            .forRowFormat(new Path(p.getProperty("hdfs.output") + "/hive/" + type),
+                new SimpleStringEncoder<String>("UTF-8"))
             .withBucketAssigner(new EntityDateBucketAssigner(type)).build();
     }
 }

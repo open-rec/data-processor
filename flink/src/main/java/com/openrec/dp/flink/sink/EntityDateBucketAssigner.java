@@ -8,11 +8,18 @@ import com.openrec.dp.feature.EntityPartitions;
 
 public class EntityDateBucketAssigner implements BucketAssigner<String, String> {
     private final String type;
-    public EntityDateBucketAssigner(String type) { this.type = type; }
-    @Override public String getBucketId(String json, Context context) {
+
+    public EntityDateBucketAssigner(String type) {
+        this.type = type;
+    }
+
+    @Override
+    public String getBucketId(String json, Context context) {
         return EntityPartitions.bucket(type, json);
     }
-    @Override public SimpleVersionedSerializer<String> getSerializer() {
+
+    @Override
+    public SimpleVersionedSerializer<String> getSerializer() {
         return SimpleVersionedStringSerializer.INSTANCE;
     }
 }
