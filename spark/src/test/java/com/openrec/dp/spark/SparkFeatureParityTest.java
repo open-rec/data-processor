@@ -1,5 +1,7 @@
 package com.openrec.dp.spark;
 
+import com.openrec.dp.spark.process.FeatureAggregationProcess;
+
 import static org.junit.Assert.assertEquals;
 
 import java.io.InputStreamReader;
@@ -29,7 +31,7 @@ public class SparkFeatureParityTest {
                 userUpdates.add(update);
             }
         }
-        FeatureSnapshot actual = SparkFeatureJob.aggregateForParity(userUpdates, asOf);
+        FeatureSnapshot actual = FeatureAggregationProcess.aggregateForParity(userUpdates, asOf);
         JsonObject expected = fixture.getAsJsonObject("expected_user");
         assertEquals(expected.size(), actual.getFeatures().size());
         for (Map.Entry<String, JsonElement> entry : expected.entrySet()) {
@@ -79,7 +81,7 @@ public class SparkFeatureParityTest {
                     selected.add(update);
                 }
             }
-            FeatureSnapshot actual = SparkFeatureJob.aggregateForParity(selected, asOf);
+            FeatureSnapshot actual = FeatureAggregationProcess.aggregateForParity(selected, asOf);
             JsonObject expected = item.getValue().getAsJsonObject();
             assertEquals(expected.size(), actual.getFeatures().size());
             for (Map.Entry<String, JsonElement> entry : expected.entrySet()) {

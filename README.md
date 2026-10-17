@@ -9,6 +9,33 @@
 
 `data-processor` provides equivalent Flink and Spark Structured Streaming jobs. Both consume the `user`, `item`, and `event` Kafka topics, update Redis serving data, persist the original entities in HBase, and append immutable JSON records to Hive-backed HDFS locations for offline training.
 
+## Pipeline organization
+
+Both engines use `source/`, `process/`, `sink/`, and `job/` packages. Sources expose native
+`DataStream<String>` (Flink) or a `Dataset<Row>` with a `json` column (Spark); jobs accept these
+streams independently of their source. Add another source by producing the same input contract.
+Spark's `HistoryEntitySource` supplies bounded mutation history for recovery.
+
+- `EntityProjectionJob` assembles entity serving projection and durable history writes.
+- `FeatureAggregationJob` assembles event updates, engine-managed state, and snapshot sinks.
+- Spark's `FeatureRebuildJob` coordinates the existing startup recovery from durable history,
+  including refreshing inactive entities. It is part of startup, not a separate submitted job.
+
+`feature-core` owns engine-neutral feature computation and `process.ServingProjection` owns
+shared user/item/event serving rules. Its `Store` port isolates these rules from Redis clients;
+engine adapters own connections and the existing Redis mutation fence. Engine-specific state
+stays in Flink's `EventFeatureProcessFunction` and Spark's `FeatureAggregationProcess`.
+Storage-specific sinks own Redis, HBase, and HDFS writes. Spark composite sinks retain one
+`foreachBatch` boundary and the existing history-before-serving write order; they do not provide
+a transaction across stores.
+
+`DpJob` and `SparkFeatureJob` remain the deployment entry points. Configuration keys, topic/group
+selection, operator ordering, state descriptor, checkpoint paths, output schemas and destinations
+are unchanged. This classification does not split production deployment into independently
+consuming jobs. Use the existing parity/operator tests and cluster acceptance flows when changing
+processing rules or adding connectors; checkpoint restore from a real deployment still needs a
+savepoint/checkpoint rehearsal.
+
 ## Feature Contract
 
 The canonical feature registry is `model/feature/catalog/feature.catalog.json`; its packaged copy

@@ -7,13 +7,7 @@ import java.util.Collections;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
 
-import com.openrec.dp.feature.FeatureJson;
-import com.openrec.dp.feature.DislikeRules;
-import com.openrec.dp.feature.EntityMessage;
-import com.openrec.dp.feature.FeatureUpdates;
-import com.openrec.proto.model.Event;
-import com.openrec.proto.model.Item;
-import com.openrec.proto.model.User;
+import com.openrec.dp.feature.process.ServingProjection;
 
 import redis.clients.jedis.JedisPooled;
 
@@ -39,84 +33,35 @@ public class RawRedisSink extends RichSinkFunction<String> {
 
     @Override
     public void invoke(String json, Context context) {
-        EntityMessage message = EntityMessage.parse(type, json);
-        if (message == null) {
-            return;
-        }
-        json = message.getDataJson();
-        if ("user".equals(type)) {
-            User user = FeatureJson.fromJson(json, User.class);
-            if (user != null && user.getId() != null) {
-                if (!acceptMutation(jedis, "mutation:user:{" + user.getId() + "}", message.getOccurredAt(),
-                    message.isDelete())) {
-                    return;
-                }
-                if (message.isDelete()) {
-                    jedis.del("user:{" + user.getId() + "}");
-                } else {
-                    jedis.set("user:{" + user.getId() + "}", json);
-                }
+        ServingProjection.write(new ServingProjection.Store() {
+            public boolean acceptMutation(String key, long occurredAt, boolean deleted) {
+                return RawRedisSink.acceptMutation(jedis, key, occurredAt, deleted);
             }
-        } else if ("item".equals(type)) {
-            Item item = FeatureJson.fromJson(json, Item.class);
-            if (item != null && item.getId() != null) {
-                if (!acceptMutation(jedis, "mutation:item:{" + item.getId() + "}", message.getOccurredAt(),
-                    message.isDelete())) {
-                    return;
-                }
-                if (message.isDelete()) {
-                    String existing = jedis.get("item:{" + item.getId() + "}");
-                    Item old = FeatureJson.fromJson(existing, Item.class);
-                    String scene = item.getScene() != null ? item.getScene() : old == null ? null : old.getScene();
-                    jedis.del("item:{" + item.getId() + "}");
-                    if (scene != null) {
-                        jedis.zrem("new:{" + scene + "}", item.getId());
-                    }
-                    return;
-                }
-                jedis.set("item:{" + item.getId() + "}", json);
-                if (item.getScene() != null && !item.getScene().trim().isEmpty()) {
-                    String key = "new:{" + item.getScene() + "}";
-                    jedis.zadd(key, parse(item.getPubTime()), item.getId());
-                    if (newMaxItems > 0) {
-                        jedis.zremrangeByRank(key, 0, -newMaxItems - 1);
-                    }
-                }
-            }
-        } else {
-            Event event = FeatureJson.fromJson(json, Event.class);
-            if (event != null && event.getUserId() != null && event.getItemId() != null) {
-                String identity = FeatureUpdates.identity(event);
-                if (identity == null || !acceptMutation(jedis, "mutation:event:{" + identity + "}",
-                    message.getOccurredAt(), message.isDelete())) {
-                    return;
-                }
-                String key = "event:{" + event.getUserId() + "}:" + event.getScene() + ":" + event.getType();
-                if ("dislike".equalsIgnoreCase(event.getType())) {
-                    for (String rule : DislikeRules.parse(event.getValue())) {
-                        if (message.isDelete()) {
-                            jedis.zrem(key, rule);
-                        } else {
-                            jedis.zadd(key, parse(event.getTime()), rule);
-                        }
-                    }
-                } else {
-                    if (message.isDelete()) {
-                        jedis.zrem(key, event.getItemId());
-                    } else {
-                        jedis.zadd(key, parse(event.getTime()), event.getItemId());
-                    }
-                }
-            }
-        }
-    }
 
-    private static double parse(String value) {
-        try {
-            return Double.parseDouble(value);
-        } catch (Exception ignored) {
-            return 0d;
-        }
+            public String get(String key) {
+                return jedis.get(key);
+            }
+
+            public void set(String key, String value) {
+                jedis.set(key, value);
+            }
+
+            public void del(String key) {
+                jedis.del(key);
+            }
+
+            public void zadd(String key, double score, String member) {
+                jedis.zadd(key, score, member);
+            }
+
+            public void zrem(String key, String member) {
+                jedis.zrem(key, member);
+            }
+
+            public void zremrangeByRank(String key, long start, long stop) {
+                jedis.zremrangeByRank(key, start, stop);
+            }
+        }, type, json, newMaxItems);
     }
 
     private static boolean acceptMutation(JedisPooled jedis, String key, long occurredAt, boolean deleted) {

@@ -1,4 +1,4 @@
-package com.openrec.dp.spark;
+package com.openrec.dp.spark.sink;
 
 import java.io.Closeable;
 import java.nio.charset.StandardCharsets;
@@ -17,13 +17,13 @@ import org.apache.hadoop.hbase.client.TableDescriptorBuilder;
 import com.openrec.dp.feature.EntityRecord;
 import com.openrec.dp.feature.EntityMessage;
 
-final class HBaseEntityWriter implements Closeable {
+public final class HBaseEntityWriter implements Closeable {
     private static final byte[] FAMILY = "entity".getBytes(StandardCharsets.UTF_8);
     private static final byte[] JSON = "json".getBytes(StandardCharsets.UTF_8);
     private final Connection connection;
     private final Table table;
 
-    HBaseEntityWriter(String type, String quorum, String znode, String prefix) throws Exception {
+    public HBaseEntityWriter(String type, String quorum, String znode, String prefix) throws Exception {
         org.apache.hadoop.conf.Configuration config = HBaseConfiguration.create();
         config.set("hbase.zookeeper.quorum", quorum);
         config.set("zookeeper.znode.parent", znode);
@@ -41,7 +41,7 @@ final class HBaseEntityWriter implements Closeable {
         table = connection.getTable(name);
     }
 
-    void write(String type, String json) throws Exception {
+    public void write(String type, String json) throws Exception {
         EntityRecord record = EntityRecord.fromJson(type, json);
         if (record == null) {
             return;
