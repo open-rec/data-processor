@@ -1,25 +1,20 @@
-# data-processor v0.1.0
+# data-processor v0.2.0
 
-Released: 2026-10-05
+Released: 2026-10-18
 
-Streaming projections and history. First coordinated OpenRec source release.
+Part of the coordinated OpenRec v0.2.0 source release.
 
-## Features
+## Changes since v0.1.0
 
-- A shared feature-core and alternative Spark Structured Streaming and Flink implementations.
-- Kafka user/item/event mutation consumption, Redis serving projections, HBase raw archives and UTC-partitioned Hive/HDFS history.
-- Mutation identity, duplicate handling, tombstones, rolling behavioral features and event-time semantics.
-- Action/conversion and commerce statistics with shared online/offline feature definitions.
-- Golden parity fixtures, Flink state harness tests, Spark micro-batch tests and versioned JSON feature-state recovery.
+- Refactor Flink and Spark jobs into source, process and sink layers.
+- Preserve versioned mutation, online feature and offline history contracts across both engines.
 
 ## Installation and compatibility
 
-Requires Java 21, Spark 4.0.4/Scala 2.13 or Flink 2.2.1, and rec-proto `0.1.0`. Engine jars and feature-core are versioned `0.1.0`.
+Requires Java 21 and rec-proto 0.2.0. Flink and Spark artifacts are versioned 0.2.0. Preserve Kafka ordering keys, tombstones, UTC partitions and existing checkpoints during upgrades.
 
-Deploy one streaming implementation for a production projection. Append-oriented history can contain retry duplicates, so offline readers must resolve identities and tombstones. Preserve checkpoints and full history for upgrades; Flink 1.x savepoint compatibility is not guaranteed. Additional Redis window statistics require replay/backfill for inactive entities.
+See the [distribution upgrade and rollback instructions](https://github.com/open-rec/openrec/blob/v0.2.0/RELEASE_NOTES.md) for the complete compatible component set and persisted configuration migrations.
 
-## Validation and known boundaries
+## Validation and publication
 
-See this repository's README for build/test commands and deployment requirements. The coordinated release's [validation record](https://github.com/open-rec/openrec/blob/v0.1.0/release/VALIDATION.md) distinguishes checks executed for this release from historical integration evidence.
-
-This initial release establishes a versioned source baseline. Source archives and checksums are published; external package registries and container registries are not populated by the source-release workflow. Upgrade the complete compatible distribution, retain data/checkpoints/artifacts, and preserve prior component refs for rollback.
+The [validation record](https://github.com/open-rec/openrec/blob/v0.2.0/release/VALIDATION.md) distinguishes release checks from maintainer-reported prior CI and integration results. GitHub Actions publishes source archives and SHA-256 checksums; Maven Central, PyPI and versioned container registries are not populated by this workflow.
