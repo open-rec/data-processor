@@ -39,7 +39,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: open-rec/rec-server
-          ref: 3b2c38d3e8a649a01ac490e7bb4607476e3b809e
+          ref: 2f4e39ff304efd4eec3e27ec3acc5c281da2aa7a
           path: rec-server
       - name: Reject tracked Maven output
         working-directory: data-processor
