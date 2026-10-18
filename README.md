@@ -175,7 +175,6 @@ For existing installations, stop jobs and back up checkpoints before replacing e
 Spark 3/Scala 2.12 drivers with Spark 4/Scala 2.13 workers. A synthetic Spark 3.5.3 to 4.0.4 JSON-state
 restore was verified, but actual installation state still needs a copy-based rehearsal. Flink 1.x to
 2.x savepoint compatibility is not guaranteed; preserve old savepoints and complete mutation history.
-See the distribution [Java 21 rollout guide](https://github.com/open-rec/openrec/blob/master/docs/java21-processors-web-migration.md).
 
 ## Testing
 
